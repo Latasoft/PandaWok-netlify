@@ -1,0 +1,91 @@
+/* Estilos globales para responsividad */
+
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+/* Asegurar que los formularios se ajusten en dispositivos móviles */
+input,
+select,
+textarea {
+  font-size: 16px; /* Evita el zoom automático en iOS */
+}
+
+/* Media queries para tablets */
+@media (min-width: 641px) and (max-width: 1024px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+/* Para asegurar que los modales funcionen bien en dispositivos móviles */
+.fixed.inset-0 {
+  overscroll-behavior: contain;
+}
+
+/* Ajustar el comportamiento del scroll en dispositivos móviles */
+@media (max-width: 640px) {
+  body {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Asegurar que el panel de detalles de reserva sea utilizable en móviles */
+@media (max-width: 768px) {
+  .reservation-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Evitar que los elementos del timeline se desborden */
+  .timeline-container {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  /* Mejorar la usabilidad de botones en móviles */
+  button, .btn {
+    min-height: 42px;
+    min-width: 42px;
+  }
+}
+
+/* Optimizaciones específicas para tablets */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .timeline-grid {
+    gap: 0.5rem;
+  }
+}
+
+/* Estilos para el header en dispositivos móviles */
+@media (max-width: 768px) {
+  /* Asegurar que los iconos del header tengan un tamaño adecuado */
+  .header-icon-mobile {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* Añadir un poco de espacio entre los iconos del header */
+  .header-icons-container {
+    gap: 4px;
+  }
+}
+
+/* Estilos para el selector de salones en móviles */
+@media (max-width: 768px) {
+  select.salon-selector {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23666' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+    height: 44px;
+  }
+
+  .salon-selector-container {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    z-index: 10;
+  }
+}
