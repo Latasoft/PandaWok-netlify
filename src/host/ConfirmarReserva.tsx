@@ -25,7 +25,7 @@ const api = axios.create({
 
 const estadosPosibles = ["pendiente", "confirmada", "cancelada"];
 
-const ReservasPage: React.FC = () => {
+const ConfirmarReserva: React.FC = () => {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +80,7 @@ const ReservasPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Reservas</h1>
+      <h1 className="text-2xl font-bold mb-6">Confirmar Reservas</h1>
 
       {loading && <p>Cargando reservas...</p>}
       {error && <p className="text-red-600">{error}</p>}
@@ -175,4 +175,4 @@ const ReservasPage: React.FC = () => {
   );
 };
 
-export default ReservasPage;
+export default ConfirmarReserva;

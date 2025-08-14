@@ -18,6 +18,8 @@ import AdminPage from './host/Admin';
 import Marketing from './host/Marketing';
 import Tags from './host/Tags';
 import ConfirmarReservaCliente from './host/ConfirmarReservaCliente'; // Importamos el componente nuevo
+import ConfirmarReserva from "./host/ConfirmarReserva";
+
 
 const mockSalones = [
   { id: '1', name: 'Salón Principal', tables: [] },
@@ -140,6 +142,18 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/confirmar-reserva"
+          element={
+            <PrivateRoute>
+              <>
+                <Header salones={mockSalones} />
+                <ConfirmarReserva />
+              </>
+            </PrivateRoute>
+          }
+        />
+
 
         {/* Rutas privadas del panel de administración */}
         <Route
