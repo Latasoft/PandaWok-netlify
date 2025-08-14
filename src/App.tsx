@@ -38,7 +38,7 @@ function App() {
         {/* Rutas públicas */}
         <Route path="/login" element={<Login />} />
         <Route path="/recuperar-contraseña" element={<RecoverPassword />} />
-
+        <Route path="reservation" element={<ReservationForm/>} />
         {/* Ruta de confirmación de reserva (NO requiere login) */}
         <Route path="/confirmar-reserva/:token" element={<ConfirmarReservaCliente />} />
 
@@ -72,17 +72,6 @@ function App() {
               <>
                 <Header salones={mockSalones} />
                 <RequestPage />
-              </>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/reservation"
-          element={
-            <PrivateRoute>
-              <>
-                <Header salones={mockSalones} />
-                <ReservationForm />
               </>
             </PrivateRoute>
           }
