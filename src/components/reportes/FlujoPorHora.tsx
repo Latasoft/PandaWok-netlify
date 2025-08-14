@@ -1,16 +1,38 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
+import axios from 'axios';
+import type { ChartOptions } from 'chart.js';
+import 'chart.js/auto';
 
 type FlujoHora = {
   hora: string;
   cantidad_personas: number;
 };
 
-type Props = {
-  flujoHora: FlujoHora[];
-};
+const FlujoPorHora: React.FC = () => {
+  const [flujoHora, setFlujoHora] = useState<FlujoHora[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-const FlujoPorHora: React.FC<Props> = ({ flujoHora }) => {
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  useEffect(() => {
+    const fetchFlujo = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get<FlujoHora[]>(`${API_BASE_URL}/api/estadisticas/flujo-hora`);
+        setFlujoHora(res.data);
+        setError('');
+      } catch {
+        setError('Error al cargar el flujo de comensales por hora');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFlujo();
+  }, [API_BASE_URL]);
+
   const chartData = {
     labels: flujoHora.map(f => f.hora),
     datasets: [
@@ -22,7 +44,7 @@ const FlujoPorHora: React.FC<Props> = ({ flujoHora }) => {
     ],
   };
 
-  const options = {
+  const options: ChartOptions<'bar'> = {
     responsive: true,
     plugins: {
       legend: { display: false },
@@ -38,6 +60,9 @@ const FlujoPorHora: React.FC<Props> = ({ flujoHora }) => {
       },
     },
   };
+
+  if (loading) return <p className="text-center text-gray-500">Cargando datos...</p>;
+  if (error) return <p className="text-center text-red-600 font-semibold">{error}</p>;
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-md mt-8 max-w-4xl mx-auto">

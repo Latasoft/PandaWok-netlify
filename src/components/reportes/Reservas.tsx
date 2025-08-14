@@ -27,11 +27,12 @@ const ListaReservas: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Filtros
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [estado, setEstado] = useState('Todos');
   const [cliente, setCliente] = useState('');
+
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     fetchReservas();
@@ -48,7 +49,7 @@ const ListaReservas: React.FC = () => {
       if (cliente.trim()) params.append('cliente', cliente.trim());
 
       const response = await axios.get<{ success: boolean; reservas: Reserva[] }>(
-        `http://localhost:5000/api/reservas?${params.toString()}`
+        `${API_BASE_URL}/api/reservas?${params.toString()}`
       );
 
       if (response.data.success) {
@@ -131,23 +132,16 @@ const ListaReservas: React.FC = () => {
           <table className="min-w-full divide-y divide-[#D4C4A8]">
             <thead className="bg-[#A17C5B]">
               <tr>
-                {[
-                  'ID',
-                  'Fecha',
-                  'Personas',
-                  'Cliente',
-                  'Teléfono',
-                  'Correo',
-                  'Notas',
-                  'Estado',
-                ].map((head) => (
-                  <th
-                    key={head}
-                    className="px-6 py-3 text-left text-xs font-semibold text-white uppercase select-none"
-                  >
-                    {head}
-                  </th>
-                ))}
+                {['ID', 'Fecha', 'Personas', 'Cliente', 'Teléfono', 'Correo', 'Notas', 'Estado'].map(
+                  (head) => (
+                    <th
+                      key={head}
+                      className="px-6 py-3 text-left text-xs font-semibold text-white uppercase select-none"
+                    >
+                      {head}
+                    </th>
+                  )
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-[#D4C4A8]">

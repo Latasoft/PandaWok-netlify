@@ -14,6 +14,8 @@ const ReservasPorDiaSemana = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   useEffect(() => {
     fetchDatos();
   }, []);
@@ -21,7 +23,7 @@ const ReservasPorDiaSemana = () => {
   const fetchDatos = async () => {
     setLoading(true);
     try {
-      const res = await axios.get<ReservaDia[]>('http://localhost:5000/api/estadisticas/reservas-por-dia');
+      const res = await axios.get<ReservaDia[]>(`${API_BASE_URL}/api/estadisticas/reservas-por-dia`);
       setDatos(res.data);
       setError('');
     } catch (err) {
@@ -31,7 +33,6 @@ const ReservasPorDiaSemana = () => {
     }
   };
 
-  // Colores para las barras, rotando si hay más días
   const coloresBarras = ['#3B82F6', '#EF4444', '#F59E0B', '#10B981', '#8B5CF6', '#EC4899', '#F43F5E'];
 
   const chartData = {
@@ -41,8 +42,8 @@ const ReservasPorDiaSemana = () => {
         label: 'Cantidad de Reservas',
         data: datos.map((d) => d.cantidad),
         backgroundColor: datos.map((_, i) => coloresBarras[i % coloresBarras.length]),
-        borderRadius: 6, // barras con esquinas redondeadas
-        barPercentage: 0.6, // ancho barras
+        borderRadius: 6,
+        barPercentage: 0.6,
       },
     ],
   };

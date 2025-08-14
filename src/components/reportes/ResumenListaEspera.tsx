@@ -7,6 +7,9 @@ type Props = {
 };
 
 const ResumenListaEspera: React.FC<Props> = ({ esperaTotal, personasTotales }) => {
+  // Base URL de la API por si se necesita en el futuro
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   const chartData = {
     labels: ['Clientes en Espera', 'Personas Totales'],
     datasets: [
@@ -31,7 +34,13 @@ const ResumenListaEspera: React.FC<Props> = ({ esperaTotal, personasTotales }) =
         </div>
       </div>
       <div className="max-w-xs mx-auto mb-4">
-        <Pie data={chartData} options={{ responsive: true, plugins: { legend: { position: 'bottom' } } }} />
+        <Pie
+          data={chartData}
+          options={{
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } },
+          }}
+        />
       </div>
     </div>
   );

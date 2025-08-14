@@ -14,6 +14,8 @@ const ComensalesPorDiaSemana = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   useEffect(() => {
     fetchDatos();
   }, []);
@@ -21,7 +23,7 @@ const ComensalesPorDiaSemana = () => {
   const fetchDatos = async () => {
     setLoading(true);
     try {
-      const res = await axios.get<ComensalesDia[]>('http://localhost:5000/api/estadisticas/comensales-por-dia');
+      const res = await axios.get<ComensalesDia[]>(`${API_BASE_URL}/api/estadisticas/comensales-por-dia`);
       setDatos(res.data);
       setError('');
     } catch (err) {

@@ -14,6 +14,8 @@ const ReservasPorGrupo = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   useEffect(() => {
     fetchDatos();
   }, []);
@@ -21,7 +23,7 @@ const ReservasPorGrupo = () => {
   const fetchDatos = async () => {
     setLoading(true);
     try {
-      const res = await axios.get<GrupoReserva[]>('http://localhost:5000/api/estadisticas/reservas-por-grupo');
+      const res = await axios.get<GrupoReserva[]>(`${API_BASE_URL}/api/estadisticas/reservas-por-grupo`);
       setDatos(res.data);
       setError('');
     } catch (err) {
