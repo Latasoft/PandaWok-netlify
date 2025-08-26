@@ -28,6 +28,7 @@ const Login: React.FC = () => {
 
   const navigate = useNavigate();
 
+  // Modifica el useEffect para redirigir automáticamente
   useEffect(() => {
     const styleEl = document.createElement('style');
     styleEl.innerHTML = globalInputStyles;
@@ -38,8 +39,8 @@ const Login: React.FC = () => {
     const savedToken = localStorage.getItem('token');
     if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
-      // Si quieres redirigir automáticamente al usuario logueado:
-      // navigate('/timeline');
+      // Redirigir automáticamente al timeline
+      navigate('/timeline');
     }
 
     return () => {
@@ -93,25 +94,6 @@ const Login: React.FC = () => {
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
-
-  if (user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
-        <h2 className="text-2xl font-semibold mb-4">¡Bienvenido, {user.nombre_usuario}!</h2>
-        <button
-          onClick={() => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            setUser(null);
-            navigate('/login');
-          }}
-          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-        >
-          Cerrar sesión
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F7F7ED' }}>
