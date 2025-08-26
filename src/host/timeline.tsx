@@ -71,6 +71,15 @@ const generateTimeOptions = (): string[] => {
   return times;
 };
 
+const sortReservasByHorario = (reservas: Reserva[], order: 'asc' | 'desc' = 'asc') => {
+  return [...reservas].sort((a, b) => {
+    // Extract hours from horario_descripcion (format: "HH:MM - HH:MM")
+    const timeA = a.horario_descripcion?.split(' - ')[0] || '99:99';
+    const timeB = b.horario_descripcion?.split(' - ')[0] || '99:99';
+    return order === 'asc' ? timeA.localeCompare(timeB) : timeB.localeCompare(timeA);
+  });
+};
+
 const Timeline: React.FC = () => {
   const [salones, setSalones] = useState<Salon[]>([]);
   const [selectedSalonId, setSelectedSalonId] = useState<number | null>(null);
@@ -88,6 +97,7 @@ const Timeline: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'mesa' | 'todas'>('mesa');
   const [todasReservas, setTodasReservas] = useState<Reserva[]>([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Carga salones
@@ -124,18 +134,17 @@ const Timeline: React.FC = () => {
   // Carga todas las reservas
 const fetchTodasReservasPorFecha = async () => {
   try {
-    console.log('Fetching reservas para fecha:', fechaSeleccionada); // Log fecha
     const response = await axios.get(`${API_BASE_URL}/api/reservas/byDate`, {
       params: { fecha: fechaSeleccionada }
     });
-    console.log('Respuesta del servidor:', response.data); // Log respuesta
-    setTodasReservas(response.data.reservas || []);
+    // Sort reservas before setting state
+    const sortedReservas = sortReservasByHorario(response.data.reservas || [], sortOrder);
+    setTodasReservas(sortedReservas);
   } catch (error) {
     console.error('Error fetching todas las reservas:', error);
     setTodasReservas([]);
   }
 };
-
   // Carga mesas cuando cambia el salón seleccionado
   useEffect(() => {
     if (!selectedSalonId) return;
@@ -275,22 +284,19 @@ const fetchTodasReservasPorFecha = async () => {
   // Primero, agregar la función de recarga
 const reloadReservas = async () => {
   try {
-    // Recargar todas las reservas primero
     const responseTodasReservas = await axios.get(`${API_BASE_URL}/api/reservas/byDate`, {
       params: { fecha: fechaSeleccionada }
     });
-    setTodasReservas(responseTodasReservas.data.reservas || []);
+    // Sort reservas before setting state
+    const sortedReservas = sortReservasByHorario(responseTodasReservas.data.reservas || [], sortOrder);
+    setTodasReservas(sortedReservas);
     
-    // Si hay una mesa seleccionada, recargar sus reservas específicas
     if (mesaSeleccionada) {
       const responseMesaReservas = await axios.get(`${API_BASE_URL}/api/reservas/mesa/${mesaSeleccionada.id}`, {
         params: { fecha: fechaSeleccionada }
       });
       setReservasMesa(responseMesaReservas.data.reservas || []);
     }
-
-    // Forzar actualización del estado para re-renderizar el sidebar
-    setActiveTab(prev => prev);
   } catch (error) {
     console.error('Error recargando reservas:', error);
   }
@@ -387,8 +393,20 @@ const reloadReservas = async () => {
               fetchTodasReservasPorFecha();
             }
           }}
-          className="mb-6 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
+          className="mb-4 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
         />
+
+        {/* Agregar el botón de ordenamiento */}
+        <button
+          onClick={() => {
+            setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+            setTodasReservas(prev => sortReservasByHorario([...prev], sortOrder));
+          }}
+          className="mb-6 w-full flex items-center justify-center gap-2 px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 transition-colors"
+        >
+          <span>Ordenar por Horario</span>
+          <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+        </button>
 
         {activeTab === 'mesa' ? (
           mesaSeleccionada ? (
@@ -443,7 +461,7 @@ const reloadReservas = async () => {
                 <p className="text-gray-600 italic text-center mb-6">No hay reservas para esta fecha.</p>
               ) : (
                 <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-350px)] pr-1 scrollbar-thin scrollbar-thumb-orange-400 scrollbar-track-orange-100">
-                  {reservasMesa.map((reserva) => (
+                  {sortReservasByHorario(reservasMesa).map((reserva) => (
                     <motion.div
                       whileHover={{ scale: 1.02 }}
                       key={reserva.id}
