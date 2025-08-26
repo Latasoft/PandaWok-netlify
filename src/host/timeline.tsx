@@ -31,7 +31,7 @@ interface Mesa {
 
 interface Reserva {
   id: number;
-  cliente_id: number | null; // Si permites nulls para walk-in
+  cliente_id: number | null;
   mesa_id: number;
   fecha_reserva: string;
   cantidad_personas: number;
@@ -40,7 +40,9 @@ interface Reserva {
   cliente_apellido?: string;
   horario_id?: number;
   horario_descripcion?: string;
-  status?: string; // 👉 AGREGA ESTA LÍNEA AQUÍ
+  status?: string;
+  numero_mesa?: string;
+  salon_nombre?: string;
 }
 
 interface BloqueoMesa {
@@ -49,6 +51,14 @@ interface BloqueoMesa {
   fecha: string;
   hora_inicio: string;
   hora_fin: string;
+}
+
+interface Horario {
+    id: number;
+    descripcion: string;
+    hora_inicio: string;
+    hora_fin: string;
+    is_active: boolean;
 }
 
 const generateTimeOptions = (): string[] => {
@@ -493,12 +503,19 @@ const fetchTodasReservasPorFecha = async () => {
                       </span>
                     )}
                   </div>
-                  <div className="text-gray-700 text-sm font-medium">👥 {reserva.cantidad_personas} personas</div>
-                  {reserva.horario_descripcion && (
-                    <div className="text-gray-600 text-sm">🕐 {reserva.horario_descripcion}</div>
-                  )}
+                  <div className="text-gray-700 text-sm font-medium">
+                    👥 {reserva.cantidad_personas} personas
+                  </div>
+                  <div className="text-gray-600 text-sm">
+                    🪑 {reserva.salon_nombre} - Mesa {reserva.numero_mesa || 'N/A'}
+                  </div>
+                  <div className="text-gray-600 text-sm">
+                    🕐 {reserva.horario_descripcion || 'Sin horario'}
+                  </div>
                   {reserva.notas && (
-                    <div className="text-gray-500 italic text-sm truncate">📝 {reserva.notas}</div>
+                    <div className="text-gray-500 italic text-sm truncate">
+                      📝 {reserva.notas}
+                    </div>
                   )}
                 </motion.div>
               ))
