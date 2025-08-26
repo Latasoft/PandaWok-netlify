@@ -223,6 +223,53 @@ const Clients: React.FC = () => {
     }
   }
 
+  // Función para manejar la importación de archivos Excel
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        // Convertir los datos al formato esperado por el backend
+        const formattedData = jsonData.map((row: any) => ({
+          nombre: row['Nombre']?.split(' ')[0] || '',
+          apellido: row['Nombre']?.split(' ').slice(1).join(' ') || '',
+          telefono: row['Teléfono']?.toString() || '',
+          correo_electronico: row['Correo'] || '',
+          visitas: parseInt(row['Visitas']) || 0,
+          ultima_visita: row['Última Visita'] === '-' ? null : row['Última Visita'],
+          tags: row['Tags'] ? row['Tags'].split(', ').filter((t: string) => t) : [],
+          gasto_total: parseFloat(row['Gasto Total (CLP)']) || 0,
+          gasto_por_visita: parseFloat(row['Gasto Promedio por Visita (CLP)']) || 0,
+          notas: row['Notas'] || ''
+        }));
+
+        // Enviar al backend
+        const response = await axios.post(`${API_BASE_URL}/api/clients/import`, formattedData);
+        
+        if (response.data.success) {
+          alert('Clientes importados correctamente');
+          fetchClients(); // Recargar la lista
+        } else {
+          alert('Error al importar: ' + response.data.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (error: any) {
+      console.error('Error importing:', error);
+      alert('Error al importar el archivo: ' + error.message);
+    }
+    
+    // Limpiar el input
+    e.target.value = '';
+  };
+
   return (
     <div className="p-6 bg-[#F7F3ED] min-h-screen">
       {/* Controles */}
@@ -242,6 +289,19 @@ const Clients: React.FC = () => {
           </button>
         </div>
         <div className="flex gap-2">
+          <input
+            type="file"
+            accept=".xlsx"
+            onChange={handleFileImport}
+            className="hidden"
+            id="excel-upload"
+          />
+          <label
+            htmlFor="excel-upload"
+            className="px-4 py-2 border rounded-md hover:bg-gray-100 transition cursor-pointer"
+          >
+            Importar Excel
+          </label>
           <button
             onClick={exportExcel}
             className="px-4 py-2 border rounded-md hover:bg-gray-100 transition"
