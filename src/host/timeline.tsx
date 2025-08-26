@@ -84,11 +84,11 @@ const Timeline: React.FC = () => {
   const [showNewReservationModal, setShowNewReservationModal] = useState(false);
   const [showBlockTableModal, setShowBlockTableModal] = useState(false);
   const [showAgregarMesaModal, setShowAgregarMesaModal] = useState(false);
-  const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(new Date().toISOString().split('T')[0]);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [showWalkInModal, setShowWalkInModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'mesa' | 'todas'>('mesa');
   const [todasReservas, setTodasReservas] = useState<Reserva[]>([]);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(new Date().toISOString().split('T')[0]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Carga salones
   useEffect(() => {
@@ -284,16 +284,6 @@ const fetchTodasReservasPorFecha = async () => {
         {/* Tabs */}
         <div className="flex mb-4 bg-white rounded-lg overflow-hidden border border-orange-200">
           <button
-            onClick={() => setActiveTab('mesa')}
-            className={`flex-1 py-2 px-4 font-semibold text-sm transition ${
-              activeTab === 'mesa'
-                ? 'bg-orange-500 text-white'
-                : 'hover:bg-orange-50 text-gray-700'
-            }`}
-          >
-            Mesa Actual
-          </button>
-          <button
             onClick={() => {
               setActiveTab('todas');
               fetchTodasReservasPorFecha();
@@ -305,6 +295,16 @@ const fetchTodasReservasPorFecha = async () => {
             }`}
           >
             Todas
+          </button>
+          <button
+            onClick={() => setActiveTab('mesa')}
+            className={`flex-1 py-2 px-4 font-semibold text-sm transition ${
+              activeTab === 'mesa'
+                ? 'bg-orange-500 text-white'
+                : 'hover:bg-orange-50 text-gray-700'
+            }`}
+          >
+            Mesa Actual
           </button>
         </div>
 
@@ -587,6 +587,7 @@ const fetchTodasReservasPorFecha = async () => {
                   setMesaSeleccionada(mesa);
                   setReservaSeleccionada(null);
                   setBloqueoSeleccionado(null);
+                  setActiveTab('mesa'); // Added this line
                 }}
                 className={`absolute flex flex-col items-center justify-center text-gray-900 font-semibold shadow cursor-pointer ${
                   mesa.tipo_mesa === 'redonda'
