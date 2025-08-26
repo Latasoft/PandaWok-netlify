@@ -41,7 +41,7 @@ interface Props {
   onReservaFinalizada: () => void;  // Nueva prop para refrescar
 }
 
-const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose }) => {
+const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReservaFinalizada }) => {
   const [reserva, setReserva] = useState<Reserva | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
@@ -188,6 +188,18 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose }) => {
       alert('Error al marcar como sentada');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (nuevoEstado: string) => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/reservas/${reservaId}/estado`, {
+        estado: nuevoEstado
+      });
+      onReservaFinalizada(); // Esto disparará la recarga
+    } catch (error) {
+      console.error('Error actualizando estado:', error);
+      alert('Error actualizando estado de la reserva');
     }
   };
 

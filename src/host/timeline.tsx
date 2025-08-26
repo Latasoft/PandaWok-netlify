@@ -272,6 +272,72 @@ const fetchTodasReservasPorFecha = async () => {
     }
   };
 
+  // Primero, agregar la función de recarga
+const reloadReservas = async () => {
+  try {
+    // Recargar todas las reservas primero
+    const responseTodasReservas = await axios.get(`${API_BASE_URL}/api/reservas/byDate`, {
+      params: { fecha: fechaSeleccionada }
+    });
+    setTodasReservas(responseTodasReservas.data.reservas || []);
+    
+    // Si hay una mesa seleccionada, recargar sus reservas específicas
+    if (mesaSeleccionada) {
+      const responseMesaReservas = await axios.get(`${API_BASE_URL}/api/reservas/mesa/${mesaSeleccionada.id}`, {
+        params: { fecha: fechaSeleccionada }
+      });
+      setReservasMesa(responseMesaReservas.data.reservas || []);
+    }
+
+    // Forzar actualización del estado para re-renderizar el sidebar
+    setActiveTab(prev => prev);
+  } catch (error) {
+    console.error('Error recargando reservas:', error);
+  }
+};
+
+  // Modificar handleDeleteReserva para usar la función de recarga
+  const handleDeleteReserva = async (id: number) => {
+    try {
+      await axios.delete(`${API_BASE_URL}/api/reservas/${id}`);
+      await reloadReservas(); // Recargar después de eliminar
+      setReservaSeleccionada(null); // Cerrar el panel de detalles
+    } catch (error) {
+      console.error('Error eliminando reserva:', error);
+      alert('No se pudo eliminar la reserva');
+    }
+  };
+
+  // Agregar la recarga al ReservationDetailsPanel
+  {reservaSeleccionada && reservaSeleccionada.id && (
+    <ReservationDetailsPanel
+      reservaId={reservaSeleccionada.id}
+      onClose={async () => {
+        await reloadReservas();
+        setReservaSeleccionada(null);
+      }}
+      onReservaFinalizada={async () => {
+        await reloadReservas();
+        setReservaSeleccionada(null);
+      }}
+    />
+  )}
+
+  // Modificar el manejo de estado en el componente
+  const handleStatusChange = async (reservaId: number, nuevoEstado: string) => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/reservas/${reservaId}/estado`, {
+        estado: nuevoEstado
+      });
+      await reloadReservas();
+      // Forzar actualización del sidebar
+      setReservaSeleccionada(null);
+    } catch (error) {
+      console.error('Error actualizando estado:', error);
+      alert('Error actualizando estado de la reserva');
+    }
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Panel izquierdo */}
@@ -626,9 +692,13 @@ const fetchTodasReservasPorFecha = async () => {
       {reservaSeleccionada && reservaSeleccionada.id && (
         <ReservationDetailsPanel
           reservaId={reservaSeleccionada.id}
-          onClose={() => setReservaSeleccionada(null)}
-          onReservaFinalizada={() => {
-            console.log('Reserva finalizada');
+          onClose={async () => {
+            await reloadReservas();
+            setReservaSeleccionada(null);
+          }}
+          onReservaFinalizada={async () => {
+            await reloadReservas();
+            setReservaSeleccionada(null);
           }}
         />
       )}
