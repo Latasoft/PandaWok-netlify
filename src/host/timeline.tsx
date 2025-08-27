@@ -2,11 +2,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Move, Menu, X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import ReservationDetailsPanel from '../components/ReservationDetailsPanel';
 import NewReservationModal from '../components/NewReservationModal';
 import BlockTableModal from '../components/BlockTableModal';
 import AgregarMesaModal from '../components/NuevaMesaModal';
 import WalkInModal from '../components/WalkInModal';
+import Header from '../components/Header';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -81,9 +83,11 @@ const sortReservasByHorario = (reservas: Reserva[], order: 'asc' | 'desc' = 'asc
 };
 
 const Timeline: React.FC = () => {
+  const navigate = useNavigate();
   const [salones, setSalones] = useState<Salon[]>([]);
   const [selectedSalonId, setSelectedSalonId] = useState<number | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [userName, setUserName] = useState('');
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [mesaSeleccionada, setMesaSeleccionada] = useState<Mesa | null>(null);
@@ -357,37 +361,95 @@ const reloadReservas = async () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
-      {/* Mobile Header */}
+      {/* Mobile Navigation Header */}
       {isMobile && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between">
-              <h1 className="text-lg font-bold text-gray-800">
-                {mesaSeleccionada ? `Mesa ${mesaSeleccionada.numero_mesa}` : 'Salones y Mesas'}
-              </h1>
-              <button
-                onClick={() => setShowMobileMenu(false)}
-                className="p-2 rounded-md hover:bg-gray-100"
-              >
-                <Menu className="w-6 h-6" />
+        <div className="fixed top-0 left-0 right-0 z-50">
+          {/* Top Navigation Bar */}
+          <div className="bg-[#3C2022] text-white px-4 py-2 flex justify-between items-center">
+            <button className="text-2xl">
+              ☰
+            </button>
+            <div className="flex items-center">
+              <img src="/pandawok-brown.png" alt="WOK" className="h-8" />
+            </div>
+            <div className="flex items-center gap-4">
+              <button>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm4.59-12.42L10 14.17l-2.59-2.58L6 13l4 4 8-8z"/>
+                </svg>
+              </button>
+              <button>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm1-13h-2v6l5.25 3.15.75-1.23-4-2.37z"/>
+                </svg>
+              </button>
+              <button>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7V8h-2v4H8l4 4 4-4h-2z"/>
+                </svg>
               </button>
             </div>
           </div>
-          <div className="px-4 pb-3 overflow-x-auto">
-            <div className="flex gap-2">
-              {salones.map((salon) => (
-                <button
-                  key={salon.id}
-                  onClick={() => setSelectedSalonId(salon.id)}
-                  className={`px-3 py-2 text-sm whitespace-nowrap rounded-lg font-medium flex-shrink-0 ${
-                    selectedSalonId === salon.id
-                      ? 'bg-orange-500 text-white shadow'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  } transition`}
-                >
-                  {salon.nombre}
-                </button>
-              ))}
+
+          {/* Second Header Row - Todo el día & Fecha */}
+          <div className="bg-[#3C2022] text-white px-4 py-2 flex justify-between items-center">
+            <span className="font-medium">Todo el día</span>
+            <div className="flex items-center gap-2">
+              <button className="px-2 py-1 text-sm bg-orange-500 rounded">
+                Ir a hoy
+              </button>
+              <span>Mie, 27 Ago</span>
+            </div>
+          </div>
+
+          {/* Second Header Row - Título y Acciones */}
+          <div className="bg-white border-b border-gray-200">
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between">
+                <h1 className="text-lg font-bold text-gray-800">
+                  {mesaSeleccionada ? `Mesa ${mesaSeleccionada.numero_mesa}` : 'Salones y Mesas'}
+                </h1>
+                <div className="flex items-center gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowAgregarMesaModal(true)}
+                    className="px-3 py-1.5 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 transition shadow"
+                  >
+                    +Mesa
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg shadow ${
+                      isEditMode ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700'
+                    } transition`}
+                  >
+                    <Move className="w-4 h-4" />
+                    {isEditMode ? 'Moviendo' : 'Mover'}
+                  </motion.button>
+                </div>
+              </div>
+            </div>
+
+            {/* Salon Tabs Row */}
+            <div className="px-4 pb-3 overflow-x-auto">
+              <div className="flex gap-2">
+                {salones.map((salon) => (
+                  <button
+                    key={salon.id}
+                    onClick={() => setSelectedSalonId(salon.id)}
+                    className={`px-3 py-2 text-sm whitespace-nowrap rounded-lg font-medium flex-shrink-0 ${
+                      selectedSalonId === salon.id
+                        ? 'bg-orange-500 text-white shadow'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    } transition`}
+                  >
+                    {salon.nombre}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -797,7 +859,7 @@ const reloadReservas = async () => {
       </aside>
 
       {/* Main */}
-            <main className={`flex-1 relative ${isMobile ? 'mt-[106px]' : ''}`}>
+            <main className={`flex-1 relative ${isMobile ? 'mt-[178px]' : ''}`}>
         <div className="p-4">
         {!isMobile && (
           <>
