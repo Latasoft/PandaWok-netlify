@@ -369,11 +369,7 @@ const reloadReservas = async () => {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
       {/* Use standard Header for both mobile and desktop */}
-      <Header salones={salones.map(salon => ({
-        id: String(salon.id),
-        name: salon.nombre,
-        tables: []
-      }))} />
+
 
       {/* Desktop Sidebar */}
       <aside
