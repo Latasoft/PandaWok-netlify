@@ -36,6 +36,15 @@ interface Reserva {
   notas: string | null;
 }
 
+interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 const api = axios.create({
   baseURL:
     import.meta.env.VITE_API_URL
@@ -67,6 +76,10 @@ const RequestPage: React.FC = () => {
   const [filtroEstado, setFiltroEstado] = useState<string>('');
   // usamos searchTerm como filtro de cliente (nombre/apellido/correo)
   const [appliedFiltersCount, setAppliedFiltersCount] = useState<number>(0);
+  // Paginación
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(20);
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
@@ -86,7 +99,10 @@ const RequestPage: React.FC = () => {
   };
 
   // Funciones para manejar reservas
-  const fetchReservas = async (options?: { applyFilters?: boolean }) => {
+  const fetchReservas = async (options?: { applyFilters?: boolean; resetPage?: boolean }) => {
+    const resetting = options?.resetPage;
+    if (resetting && page !== 1) setPage(1);
+    const currentPage = resetting ? 1 : page;
     setLoading(true);
     try {
       // Construir query params si se aplican filtros
@@ -117,11 +133,15 @@ const RequestPage: React.FC = () => {
           params.append('cliente', searchTerm.trim());
         }
       }
-      if ([...params.keys()].length > 0) {
-        url += `?${params.toString()}`;
-      }
+      // siempre añadir paginación
+  params.append('page', String(currentPage));
+      params.append('limit', String(limit));
+      url += `?${params.toString()}`;
       const res = await api.get(url);
       setReservas(res.data.reservas);
+      if (res.data.pagination) {
+        setPagination(res.data.pagination);
+      }
       const estadosInit: Record<number, string> = {};
       res.data.reservas.forEach((r: Reserva) => {
         estadosInit[r.id] = r.estado.toLowerCase();
@@ -168,10 +188,10 @@ const RequestPage: React.FC = () => {
 
   useEffect(() => {
     fetchReservas();
-  }, []);
+  }, [page, limit]);
 
   const aplicarFiltros = () => {
-    fetchReservas({ applyFilters: true });
+  fetchReservas({ applyFilters: true, resetPage: true });
     setShowFilters(false);
   };
 
@@ -180,7 +200,7 @@ const RequestPage: React.FC = () => {
     setFiltroFechaFin('');
     setFiltroEstado('');
     setSearchTerm('');
-    fetchReservas({ applyFilters: true });
+  fetchReservas({ applyFilters: true, resetPage: true });
   };
 
   return (
@@ -236,112 +256,147 @@ const RequestPage: React.FC = () => {
       </div>
 
       {/* Contenedor de reservas */}
-      <p className="text-gray-400 text-sm mb-4">Mostrando {reservas.length} reservas</p>
+      <p className="text-gray-400 text-sm mb-4">
+        Mostrando {reservas.length} reservas
+        {pagination && (
+          <span className="ml-2 text-xs text-gray-500">Página {pagination.page} de {pagination.totalPages} (Total {pagination.total})</span>
+        )}
+      </p>
 
       {loading && <p className="text-gray-400">Cargando reservas...</p>}
       {error && <p className="text-red-400">{error}</p>}
 
-      {!loading && !error && (
-        <div className="bg-[#3C2022] rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
-              <thead>
-                <tr>
-                  <th className="border border-gray-300 p-2 text-white">ID</th>
-                  <th className="border border-gray-300 p-2 text-white">Cliente</th>
-                  <th className="border border-gray-300 p-2 text-white">Correo</th>
-                  <th className="border border-gray-300 p-2 text-white">Fecha</th>
-                  <th className="border border-gray-300 p-2 text-white">Horario</th>
-                  <th className="border border-gray-300 p-2 text-white">Personas</th>
-                  <th className="border border-gray-300 p-2 text-white">Estado</th>
-                  <th className="border border-gray-300 p-2 text-white">Cambiar Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reservas.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="text-center py-4 text-white">
-                      No hay reservas disponibles.
-                    </td>
-                  </tr>
-                ) : (
-                  reservas.map((reserva) => {
-                    const estadoActual = reserva.estado.toLowerCase();
-                    const estadoNuevo = estadoSeleccionado[reserva.id] || estadoActual;
-                    const isChanged = estadoNuevo !== estadoActual;
-                    return (
-                      <tr key={reserva.id} className="hover:bg-[#4A3A35] transition-colors">
-                        <td className="border border-gray-300 p-2 text-center text-white">{reserva.id}</td>
-                        <td className="border border-gray-300 p-2 text-white">
-                          {reserva.cliente
-                            ? `${reserva.cliente.nombre} ${reserva.cliente.apellido}`
-                            : "Walk-in / Sin cliente"}
-                        </td>
-                        <td className="border border-gray-300 p-2 text-white">
-                          {reserva.cliente ? reserva.cliente.correo_electronico : "-"}
-                        </td>
-                        <td className="border border-gray-300 p-2 text-center text-white">
-                          {new Date(reserva.fecha_reserva).toLocaleDateString()}
-                        </td>
-                        <td className="border border-gray-300 p-2 text-center text-white">
-                          {new Date(reserva.fecha_reserva).toLocaleTimeString('es-ES', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </td>
-                        <td className="border border-gray-300 p-2 text-center text-white">
-                          {reserva.cantidad_personas}
-                        </td>
-                        <td className="border border-gray-300 p-2 text-center">
-                          <EstadoBadge estado={estadoActual} />
-                        </td>
-                        <td className="border border-gray-300 p-2 text-center flex items-center justify-center space-x-2">
-                          <select
-                            aria-label={`Seleccionar estado para reserva ${reserva.id}`}
-                            value={estadoNuevo}
-                            onChange={(e) =>
-                              setEstadoSeleccionado({
-                                ...estadoSeleccionado,
-                                [reserva.id]: e.target.value,
-                              })
-                            }
-                            className="border border-gray-600 rounded px-2 py-1 bg-[#2A1F1B] text-white"
-                            disabled={loadingEstadoId === reserva.id}
-                          >
-                            {estadosPosibles.map((e) => (
-                              <option key={e} value={e}>
-                                {e.charAt(0).toUpperCase() + e.slice(1)}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            disabled={!isChanged || loadingEstadoId === reserva.id}
-                            onClick={() => actualizarEstado(reserva.id)}
-                            className={`px-3 py-1 rounded text-white transition ${
-                              loadingEstadoId === reserva.id
-                                ? "bg-blue-300 cursor-not-allowed"
-                                : isChanged
-                                ? "bg-blue-600 hover:bg-blue-700"
-                                : "bg-gray-400 cursor-not-allowed"
-                            }`}
-                            title={
-                              isChanged
-                                ? "Guardar nuevo estado"
-                                : "Seleccione un estado diferente para habilitar"
-                            }
-                          >
-                            {loadingEstadoId === reserva.id ? "Guardando..." : "Guardar"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
+            {!loading && !error && (
+              <>
+                <div className="bg-[#3C2022] rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-300">
+                      <thead>
+                        <tr>
+                          <th className="border border-gray-300 p-2 text-white">ID</th>
+                          <th className="border border-gray-300 p-2 text-white">Cliente</th>
+                          <th className="border border-gray-300 p-2 text-white">Correo</th>
+                          <th className="border border-gray-300 p-2 text-white">Fecha</th>
+                          <th className="border border-gray-300 p-2 text-white">Horario</th>
+                          <th className="border border-gray-300 p-2 text-white">Personas</th>
+                          <th className="border border-gray-300 p-2 text-white">Estado</th>
+                          <th className="border border-gray-300 p-2 text-white">Cambiar Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reservas.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="text-center py-4 text-white">
+                              No hay reservas disponibles.
+                            </td>
+                          </tr>
+                        ) : (
+                          reservas.map((reserva) => {
+                            const estadoActual = reserva.estado.toLowerCase();
+                            const estadoNuevo = estadoSeleccionado[reserva.id] || estadoActual;
+                            const isChanged = estadoNuevo !== estadoActual;
+                            return (
+                              <tr key={reserva.id} className="hover:bg-[#4A3A35] transition-colors">
+                                <td className="border border-gray-300 p-2 text-center text-white">{reserva.id}</td>
+                                <td className="border border-gray-300 p-2 text-white">
+                                  {reserva.cliente
+                                    ? `${reserva.cliente.nombre} ${reserva.cliente.apellido}`
+                                    : "Walk-in / Sin cliente"}
+                                </td>
+                                <td className="border border-gray-300 p-2 text-white">
+                                  {reserva.cliente ? reserva.cliente.correo_electronico : "-"}
+                                </td>
+                                <td className="border border-gray-300 p-2 text-center text-white">
+                                  {new Date(reserva.fecha_reserva).toLocaleDateString()}
+                                </td>
+                                <td className="border border-gray-300 p-2 text-center text-white">
+                                  {new Date(reserva.fecha_reserva).toLocaleTimeString('es-ES', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })}
+                                </td>
+                                <td className="border border-gray-300 p-2 text-center text-white">
+                                  {reserva.cantidad_personas}
+                                </td>
+                                <td className="border border-gray-300 p-2 text-center">
+                                  <EstadoBadge estado={estadoActual} />
+                                </td>
+                                <td className="border border-gray-300 p-2 text-center flex items-center justify-center space-x-2">
+                                  <select
+                                    aria-label={`Seleccionar estado para reserva ${reserva.id}`}
+                                    value={estadoNuevo}
+                                    onChange={(e) =>
+                                      setEstadoSeleccionado({
+                                        ...estadoSeleccionado,
+                                        [reserva.id]: e.target.value,
+                                      })
+                                    }
+                                    className="border border-gray-600 rounded px-2 py-1 bg-[#2A1F1B] text-white"
+                                    disabled={loadingEstadoId === reserva.id}
+                                  >
+                                    {estadosPosibles.map((e) => (
+                                      <option key={e} value={e}>
+                                        {e.charAt(0).toUpperCase() + e.slice(1)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    disabled={!isChanged || loadingEstadoId === reserva.id}
+                                    onClick={() => actualizarEstado(reserva.id)}
+                                    className={`px-3 py-1 rounded text-white transition ${
+                                      loadingEstadoId === reserva.id
+                                        ? "bg-blue-300 cursor-not-allowed"
+                                        : isChanged
+                                        ? "bg-blue-600 hover:bg-blue-700"
+                                        : "bg-gray-400 cursor-not-allowed"
+                                    }`}
+                                    title={
+                                      isChanged
+                                        ? "Guardar nuevo estado"
+                                        : "Seleccione un estado diferente para habilitar"
+                                    }
+                                  >
+                                    {loadingEstadoId === reserva.id ? "Guardando..." : "Guardar"}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                {pagination && pagination.totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border-t border-gray-700">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        disabled={!pagination.hasPrevPage || loading}
+                        onClick={() => pagination.hasPrevPage && setPage(p => Math.max(p - 1, 1))}
+                        className={`px-3 py-1 rounded bg-[#2A1F1B] text-white text-sm ${!pagination.hasPrevPage || loading ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#3C2022]'}`}
+                      >Anterior</button>
+                      <span className="text-gray-300 text-sm">Página {pagination.page} / {pagination.totalPages}</span>
+                      <button
+                        disabled={!pagination.hasNextPage || loading}
+                        onClick={() => pagination.hasNextPage && setPage(p => p + 1)}
+                        className={`px-3 py-1 rounded bg-[#2A1F1B] text-white text-sm ${!pagination.hasNextPage || loading ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#3C2022]'}`}
+                      >Siguiente</button>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                      <label htmlFor="limit" className="text-xs uppercase tracking-wide">Por página</label>
+                      <select
+                        id="limit"
+                        value={limit}
+                        onChange={(e) => { setLimit(parseInt(e.target.value, 10)); setPage(1); }}
+                        className="bg-[#2A1F1B] border border-gray-600 rounded px-2 py-1 text-white text-sm"
+                      >
+                        {[10,20,30,50,100].map(sz => <option key={sz} value={sz}>{sz}</option>)}
+                      </select>
+                    </div>
+                  </div>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+              </>
+            )}
 
       {showFilters && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
