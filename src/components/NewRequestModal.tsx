@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import ClientTagsModal from './ClientTagsModal';
 import ReservationTagsModal from './ReservationTagsModal';
 
@@ -24,6 +25,9 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
   const [buscarComensal, setBuscarComensal] = useState('');
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [isClientTagsModalOpen, setIsClientTagsModalOpen] = useState(false);
   const [isReservationTagsModalOpen, setIsReservationTagsModalOpen] = useState(false);
@@ -65,25 +69,71 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const requestData = {
-      telefono,
-      email,
-      clientTags,
-      reservationTags,
-      membershipNumber,
-      reservationNote,
-      file: selectedFile ? selectedFile.name : null,
-      fecha,
-      hora,
-      personas,
-      tipoReserva,
-      buscarComensal,
-      nombre,
-      apellido,
-    };
-    onCreateRequest(requestData);
+    setError(null);
+    setSuccessMessage(null);
+
+    // Validaciones mínimas requeridas por backend
+    if (!nombre.trim() || !apellido.trim()) {
+      setError('Nombre y Apellido son obligatorios');
+      return;
+    }
+    if (!email.trim()) {
+      setError('Correo electrónico es obligatorio');
+      return;
+    }
+    if (!telefono.trim()) {
+      setError('Teléfono es obligatorio');
+      return;
+    }
+    if (!fecha) {
+      setError('Fecha requerida');
+      return;
+    }
+    if (!personas || typeof personas !== 'number' || personas <= 0) {
+      setError('Cantidad de personas inválida');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Construir payload para endpoint /api/reservas
+      const payload = {
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        correo_electronico: email.trim(),
+        telefono: telefono.trim(),
+        // Campos no definidos aún en este modal
+        mesa_id: null, // se asignará posteriormente en timeline
+        horario_id: null, // no se selecciona horario aquí
+        fecha_reserva: fecha, // backend espera formato YYYY-MM-DD
+        cantidad_personas: personas,
+        notas: reservationNote.trim() ? reservationNote.trim() : null,
+      };
+
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await axios.post(`${baseURL}/api/reservas`, payload);
+
+      // Notificar al padre con datos originales + respuesta del backend
+      onCreateRequest({
+        ...payload,
+        clientTags,
+        reservationTags,
+        membershipNumber,
+        hora, // aunque no se usó para crear la reserva todavía
+        rawResponse: response.data,
+      });
+      setSuccessMessage('Reserva creada correctamente (estado: pendiente)');
+      // Reset parcial (mantener abierto para crear otra rápido) o cerrar si se desea
+      // onClose(); // Descomentar si quieres cerrar automáticamente
+    } catch (err: any) {
+      console.error('Error creando reserva:', err);
+      const msg = err?.response?.data?.error || err?.message || 'Error al crear la reserva';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -115,6 +165,16 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
                 scrollbarWidth: 'thin',
                 scrollbarColor: '#B24E00 #212133',
               }}>
+          {error && (
+            <div className="p-3 rounded bg-red-600/20 border border-red-500 text-red-300 text-sm">
+              {error}
+            </div>
+          )}
+          {successMessage && (
+            <div className="p-3 rounded bg-green-600/20 border border-green-500 text-green-300 text-sm">
+              {successMessage}
+            </div>
+          )}
           {/* Fila 1: Fecha y Hora */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -367,10 +427,11 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
           </button>
           <button
             type="submit"
-            form="new-request-form" // Asegúrate de que el form ID coincida
-            className="px-6 py-2 rounded font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+            form="new-request-form"
+            disabled={loading}
+            className={`px-6 py-2 rounded font-semibold text-white transition-colors ${loading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
           >
-            Crear
+            {loading ? 'Creando...' : 'Crear'}
           </button>
         </div>
       </div>

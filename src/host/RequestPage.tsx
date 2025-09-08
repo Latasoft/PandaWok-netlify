@@ -79,7 +79,10 @@ const RequestPage: React.FC = () => {
   const handleNewRequestCreated = (requestData: RequestData) => {
     console.log('Nueva solicitud creada:', requestData);
     setRequests(prevRequests => [...prevRequests, requestData]);
-    setIsNewRequestModalOpen(false);
+  // Cerrar modal
+  setIsNewRequestModalOpen(false);
+  // Refrescar reservas (manteniendo filtros actuales si los hay)
+  fetchReservas({ applyFilters: true });
   };
 
   // Funciones para manejar reservas

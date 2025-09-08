@@ -106,7 +106,8 @@ const Timeline: React.FC = () => {
   const [showBlockTableModal, setShowBlockTableModal] = useState(false);
   const [showAgregarMesaModal, setShowAgregarMesaModal] = useState(false);
   const [showWalkInModal, setShowWalkInModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'mesa' | 'todas'>('mesa');
+  type TabType = 'mesa' | 'todas';
+  const [activeTab, setActiveTab] = useState<TabType>('mesa');
   const [todasReservas, setTodasReservas] = useState<Reserva[]>([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(new Date().toISOString().split('T')[0]);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -567,6 +568,34 @@ const reloadReservas = async () => {
                           📝 {reserva.notas}
                         </div>
                       )}
+                      {/* Botón para asignar mesa si está confirmada y sin mesa */}
+                      {reserva.status === 'confirmada' && (!reserva.mesa_id || reserva.mesa_id === null) && mesaSeleccionada && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await axios.put(`${API_BASE_URL}/api/reservas/${reserva.id}`, {
+                                mesa_id: mesaSeleccionada.id,
+                                cliente_id: reserva.cliente_id,
+                                horario_id: reserva.horario_id,
+                                fecha_reserva: reserva.fecha_reserva.split('T')[0],
+                                cantidad_personas: reserva.cantidad_personas,
+                                notas: reserva.notas || null
+                              });
+                              await fetchTodasReservasPorFecha();
+                              // Si la vista actual es por mesa recargar reservas de la mesa
+                              await fetchReservasMesa();
+                            } catch (err) {
+                              console.error('Error asignando mesa', err);
+                              alert('No se pudo asignar la mesa');
+                            }
+                          }}
+                          className="mt-2 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs font-semibold self-start"
+                          title={mesaSeleccionada ? `Asignar a mesa ${mesaSeleccionada.numero_mesa}` : 'Seleccione una mesa'}
+                        >
+                          Asignar a Mesa Seleccionada
+                        </button>
+                      )}
                     </motion.div>
                   ))
                 )}
@@ -983,6 +1012,33 @@ const reloadReservas = async () => {
                           <p className="text-sm text-gray-600">
                             🕐 {reserva.horario_descripcion}
                           </p>
+                        )}
+                        {reserva.status === 'confirmada' && (!reserva.mesa_id || reserva.mesa_id === null) && mesaSeleccionada && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await axios.put(`${API_BASE_URL}/api/reservas/${reserva.id}`, {
+                                  mesa_id: mesaSeleccionada.id,
+                                  cliente_id: reserva.cliente_id,
+                                  horario_id: reserva.horario_id,
+                                  fecha_reserva: reserva.fecha_reserva.split('T')[0],
+                                  cantidad_personas: reserva.cantidad_personas,
+                                  notas: reserva.notas || null
+                                });
+                                await fetchTodasReservasPorFecha();
+                                if (activeTab === 'mesa') {
+                                  await fetchReservasMesa();
+                                }
+                              } catch (err) {
+                                console.error('Error asignando mesa', err);
+                                alert('No se pudo asignar la mesa');
+                              }
+                            }}
+                            className="mt-2 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs font-semibold"
+                          >
+                            Asignar a Mesa Seleccionada
+                          </button>
                         )}
                       </div>
                     ))
