@@ -267,7 +267,7 @@ const ReservationForm: React.FC = () => {
     }
 
     return (
-      <div className="absolute top-full left-0 right-0 sm:right-auto mt-2 bg-white border border-gray-200 rounded-xl shadow-lg p-3 sm:p-4 z-50 w-full sm:w-72 max-w-sm">
+      <div className="relative top-full left-0 right-0 sm:right-auto mt-2 bg-white border border-gray-200 rounded-xl shadow-lg p-3 sm:p-4 z-50 w-full sm:w-72 max-w-sm">
         {showMonthYearPicker ? (
           <div className="bg-white">
             <div className="flex items-center justify-between mb-3">
@@ -594,9 +594,17 @@ const ReservationForm: React.FC = () => {
                   {modifiedData.date || selectedDate}
                 </button>
                 {showDatePicker && (
-                  <div className="absolute top-full left-0 mt-1 z-50 date-picker-container">
-                    {renderCalendar()}
-                  </div>
+                  <>
+                    {/* Fondo oscuro para mobile */}
+                    <div
+                      className="fixed inset-0 bg-black bg-opacity-30 z-40"
+                      onClick={() => setShowDatePicker(false)}
+                    />
+                    {/* Calendario modal en mobile, dropdown en desktop */}
+                    <div className="fixed sm:absolute left-1/2 sm:left-0 top-1/2 sm:top-full transform sm:translate-x-0 -translate-x-1/2 -translate-y-1/2 sm:-translate-y-0 mt-0 sm:mt-2 z-50 w-[95vw] sm:w-72 max-w-md date-picker-container">
+                      {renderCalendar()}
+                    </div>
+                  </>
                 )}
               </div>
               
@@ -728,9 +736,17 @@ const ReservationForm: React.FC = () => {
                 {selectedDate}
               </button>
               {showDatePicker && (
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50 date-picker-container">
-                  {renderCalendar()}
-                </div>
+                <>
+                  {/* Fondo oscuro para mobile */}
+                  <div
+                    className="fixed inset-0 bg-black bg-opacity-30 z-40"
+                    onClick={() => setShowDatePicker(false)}
+                  />
+                  {/* Calendario modal en mobile, dropdown en desktop */}
+                  <div className="fixed sm:absolute left-1/2 sm:left-0 top-1/2 sm:top-full transform sm:translate-x-0 -translate-x-1/2 -translate-y-1/2 sm:-translate-y-0 mt-0 sm:mt-2 z-50 w-[95vw] sm:w-72 max-w-md date-picker-container">
+                    {renderCalendar()}
+                  </div>
+                </>
               )}
             </div>
             <div className="text-center">
@@ -1105,9 +1121,17 @@ const ReservationForm: React.FC = () => {
               </svg>
             </button>
             {showDatePicker && (
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50 date-picker-container">
-                {renderCalendar()}
-              </div>
+              <>
+                {/* Fondo oscuro para mobile */}
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowDatePicker(false)}
+                />
+                {/* Calendario modal en mobile, dropdown en desktop */}
+                <div className="fixed sm:absolute left-1/2 sm:left-0 top-1/2 sm:top-full transform sm:translate-x-0 -translate-x-1/2 -translate-y-1/2 sm:-translate-y-0 mt-0 sm:mt-2 z-50 w-[95vw] sm:w-72 max-w-md date-picker-container">
+                  {renderCalendar()}
+                </div>
+              </>
             )}
           </div>
         </div>
