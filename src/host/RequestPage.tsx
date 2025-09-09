@@ -26,6 +26,7 @@ interface Cliente {
   nombre: string;
   apellido: string;
   correo_electronico: string;
+  telefono?: string;
 }
 
 interface Reserva {
@@ -186,32 +187,38 @@ const RequestPage: React.FC = () => {
       await api.post(`reservas/${id}/estado`, { estado: nuevoEstado });
 
       // Lógica de correo 100% en frontend (EmailJS)
-      if (nuevoEstado.toLowerCase() === 'confirmada') {
+      if (['confirmada', 'cancelada'].includes(nuevoEstado.toLowerCase())) {
         const reserva = reservas.find(r => r.id === id);
         const clienteEmail = reserva?.cliente?.correo_electronico;
         if (reserva && clienteEmail) {
           const fecha = new Date(reserva.fecha_reserva);
-          const templateParams = {
+          const baseParams = {
             customer_name: `${reserva.cliente?.nombre ?? ''} ${reserva.cliente?.apellido ?? ''}`.trim(),
             reservation_date: fecha.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }),
             reservation_time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
             party_size: String(reserva.cantidad_personas),
-            phone: '', // si guardas teléfono en reserva, pásalo aquí
+            phone: reserva.cliente?.telefono ?? '',
             comments: reserva.notas ?? '',
-            to_email: clienteEmail
+            to_email: clienteEmail,
           };
+
+          // seleccionar template según estado
+          const estadoLower = nuevoEstado.toLowerCase();
+          const templateId = estadoLower === 'cancelada' ? 'template_hhabtvi' : 'template_pdi4dqa';
+
+          // loguear params antes de enviar para debugging
+          console.log('EmailJS templateParams ->', { templateId, ...baseParams });
 
           try {
             await emailjs.send(
               'service_1jci0t7',
-              'template_pdi4dqa',
-              templateParams,
-              'BgQlos8cUH1tIBIo5' // public key (opcional si ya init)
+              templateId,
+              baseParams,
+              'BgQlos8cUH1tIBIo5'
             );
-            console.log('EmailJS: correo de confirmación enviado a', clienteEmail);
+            console.log(`EmailJS: correo (${templateId}) enviado a`, clienteEmail);
           } catch (emailErr) {
             console.error('Error enviando EmailJS (frontend):', emailErr);
-            // No interrumpimos el flujo principal; notificar si quieres
           }
         } else {
           console.warn('No se encontró email del cliente para reserva', id);
