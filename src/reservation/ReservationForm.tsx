@@ -814,18 +814,21 @@ const ReservationForm: React.FC = () => {
               <div>
                 <label className="block text-sm text-gray-500 mb-1">Hora</label>
                 <select 
-                  value={modifiedData.time || selectedTime}
-                  onChange={(e) => setModifiedData(prev => ({ ...prev, time: e.target.value }))
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-all duration-200 hover:border-gray-400 outline-none"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat', backgroundSize: '16px' }}
-                >
-                  {timeSlots.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
+  value={timeSlotToId[modifiedData.time as keyof typeof timeSlotToId] || timeSlotToId[selectedTime as keyof typeof timeSlotToId] || 1}
+  onChange={(e) => {
+    const selectedId = parseInt(e.target.value);
+    const selectedTimeString = Object.keys(timeSlotToId).find(key => timeSlotToId[key as keyof typeof timeSlotToId] === selectedId);
+    setModifiedData(prev => ({ ...prev, time: selectedTimeString || selectedTime }));
+  }}
+  className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-all duration-200 hover:border-gray-400 outline-none"
+  style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat', backgroundSize: '16px' }}
+>
+  {timeSlots.map((time) => (
+    <option key={time} value={timeSlotToId[time as keyof typeof timeSlotToId]}>
+      {time}
+    </option>
+  ))}
+</select>
               </div>
               
               <div>

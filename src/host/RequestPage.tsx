@@ -289,15 +289,14 @@ const RequestPage: React.FC = () => {
     9: '4:30 pm'
   };
 
-  const getHorarioRange = (horarioId: number | null): string => {
-    if (!horarioId) return 'Sin horario';
-    const startHour = 12 + Math.floor((horarioId - 1) / 2);
-    const startMinute = (horarioId - 1) % 2 === 0 ? 30 : 0;
-    const endHour = startMinute === 30 ? startHour + 1 : startHour;
-    const endMinute = startMinute === 30 ? 0 : 30;
-    return `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
-  };
-
+const getHorarioRange = (horarioId: number | null): string => {
+  if (!horarioId) return 'Sin horario';
+  const startHour = 12 + Math.ceil((horarioId - 1) / 2); // <-- Cambiar Math.floor por Math.ceil
+  const startMinute = horarioId % 2 === 1 ? 30 : 0;
+  const endHour = startMinute === 30 ? startHour + 1 : startHour;
+  const endMinute = startMinute === 30 ? 0 : 30;
+  return `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+};
   return (
     <div className="min-h-screen p-4" style={{ backgroundColor: '#211B17' }}>
       <h1 className="text-white text-2xl md:text-3xl font-semibold mb-6">Confirmar Reservas</h1>
