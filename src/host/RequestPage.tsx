@@ -37,7 +37,7 @@ interface Reserva {
 }
 
 interface PaginationMeta {
-  page: number;
+page: number;
   limit: number;
   total: number;
   totalPages: number;
