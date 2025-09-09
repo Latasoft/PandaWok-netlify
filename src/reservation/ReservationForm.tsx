@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import emailjs from '@emailjs/browser';
 import logo from '../assets/pandawok-brown.png';
 
 const ReservationForm: React.FC = () => {
@@ -79,6 +80,15 @@ const ReservationForm: React.FC = () => {
     setShowConfirmForm(true);
   };
 
+  useEffect(() => {
+    // Inicializa EmailJS en este componente (es idempotente)
+    try {
+      emailjs.init('BgQlos8cUH1tIBIo5');
+    } catch (err) {
+      console.warn('EmailJS init warning', err);
+    }
+  }, []);
+
   const handleConfirmReservation = () => {
     (async () => {
       if (!formData.firstName || !formData.lastName || !formData.email) {
@@ -112,6 +122,37 @@ const ReservationForm: React.FC = () => {
           const text = await res.text();
           console.error('create reserva failed', res.status, text);
           throw new Error('Error creando la reserva');
+        }
+
+        // -- Correo manejado totalmente desde el frontend (mismo patrón que RequestPage) --
+        try {
+          const dt = new Date(fechaReservaISO);
+          const templateParams = {
+            to_email: formData.email, // debe coincidir con "To: ${to_email}" en el template de EmailJS
+            customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
+            reservation_date: dt.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }),
+            reservation_time: selectedTime,
+            party_size: String(selectedPeople),
+            phone: formData.phone || getPhoneNumber(),
+            comments: formData.comments || '',
+            from_name: 'Panda Wok Valparaíso',
+            reply_to: 'no-reply@pandawok.cl'
+          };
+
+          // debug: confirmar destinatario antes de enviar
+          console.log('EmailJS templateParams (creación):', templateParams);
+
+          await emailjs.send(
+            'service_1jci0t7',
+            'template_9d4paeh',
+            templateParams,
+            'BgQlos8cUH1tIBIo5'
+          );
+
+          console.log('EmailJS: correo de confirmación (creación) enviado a', formData.email);
+        } catch (emailErr) {
+          console.error('Error enviando EmailJS (creación):', emailErr);
+          // no bloqueamos la UX si falla el email
         }
 
         setShowConfirmForm(false);
