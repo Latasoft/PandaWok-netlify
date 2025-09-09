@@ -140,7 +140,11 @@ const RequestPage: React.FC = () => {
       params.append('limit', String(limit));
       url += `?${params.toString()}`;
       const res = await api.get(url);
-      setReservas(res.data.reservas);
+      // ordenar por id ascendente antes de setear el estado
+      const ordenadas: Reserva[] = Array.isArray(res.data.reservas)
+        ? [...res.data.reservas].sort((a: Reserva, b: Reserva) => b.id - a.id)
+        : [];
+      setReservas(ordenadas);
       if (res.data.pagination) {
         setPagination(res.data.pagination);
       }
