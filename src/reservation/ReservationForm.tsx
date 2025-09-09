@@ -31,6 +31,7 @@ const ReservationForm: React.FC = () => {
     email: '',
     comments: ''
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const timeSlots = [
     '12:30 pm', '1:00 pm', '1:30 pm', '2:00 pm', '2:30 pm',
@@ -79,7 +80,49 @@ const ReservationForm: React.FC = () => {
   };
 
   const handleConfirmReservation = () => {
-    setShowSuccessScreen(true);
+    (async () => {
+      if (!formData.firstName || !formData.lastName || !formData.email) {
+        alert('Complete los datos requeridos');
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        const fechaReservaISO = buildFechaReservaISO();
+        const payload = {
+          nombre: formData.firstName,
+          apellido: formData.lastName,
+          correo_electronico: formData.email,
+          telefono: formData.phone || getPhoneNumber(),
+          mesa_id: null,
+          horario_id: null,
+          fecha_reserva: fechaReservaISO,
+          cantidad_personas: parseInt(selectedPeople, 10),
+          notas: `Horario preferido: ${selectedTime}. ${formData.comments || ''}`,
+        };
+
+        const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : 'http://localhost:5000';
+        const res = await fetch(`${base}/api/reservas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error('create reserva failed', res.status, text);
+          throw new Error('Error creando la reserva');
+        }
+
+        setShowConfirmForm(false);
+        setShowSuccessScreen(true);
+      } catch (error) {
+        console.error(error);
+        alert('Error al crear la reserva. Intente nuevamente.');
+      } finally {
+        setSubmitting(false);
+      }
+    })();
   };
 
   const handleModifyReservation = () => {
@@ -119,6 +162,42 @@ const ReservationForm: React.FC = () => {
     return formData.phone.startsWith(dialCode) 
       ? formData.phone.slice(dialCode.length).trim()
       : formData.phone;
+  };
+
+  // Construye un ISO datetime a partir de selectedDate y selectedTime
+  const buildFechaReservaISO = (): string => {
+    try {
+      if (!selectedDate) return new Date().toISOString();
+
+      const parts = selectedDate.split(', ');
+      if (parts.length < 2) return new Date().toISOString();
+      const dayMonth = parts[1]; // "Ene 12"
+      const [monthAbbr, dayStr] = dayMonth.split(' ');
+      const day = parseInt(dayStr, 10);
+
+      const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const monthIndex = monthNames.indexOf(monthAbbr);
+      const year = currentMonth.getFullYear();
+
+      if (monthIndex === -1 || isNaN(day)) return new Date().toISOString();
+
+      const tm = selectedTime.trim().toLowerCase();
+      const timeMatch = tm.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/);
+      let hours = 0;
+      let minutes = 0;
+      if (timeMatch) {
+        hours = parseInt(timeMatch[1], 10);
+        minutes = parseInt(timeMatch[2], 10);
+        const ampm = timeMatch[3];
+        if (ampm === 'pm' && hours < 12) hours += 12;
+        if (ampm === 'am' && hours === 12) hours = 0;
+      }
+
+      const dt = new Date(year, monthIndex, day, hours, minutes, 0);
+      return dt.toISOString();
+    } catch (err) {
+      return new Date().toISOString();
+    }
   };
 
   const getDaysInMonth = (date: Date) => {
