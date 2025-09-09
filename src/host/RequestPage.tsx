@@ -36,6 +36,7 @@ interface Reserva {
   estado: string;
   cantidad_personas: number;
   notas: string | null;
+  horario_id: number | null; // <-- Agregar
 }
 
 interface PaginationMeta {
@@ -270,6 +271,33 @@ const RequestPage: React.FC = () => {
   fetchReservas({ applyFilters: true, resetPage: true });
   };
 
+  const timeSlots = [
+    '12:30 pm', '1:00 pm', '1:30 pm', '2:00 pm', '2:30 pm',
+    '3:00 pm', '3:30 pm', '4:00 pm', '4:30 pm'
+  ];
+
+  // Mapeo de IDs a horas
+  const idToTimeSlot = {
+    1: '12:30 pm',
+    2: '1:00 pm',
+    3: '1:30 pm',
+    4: '2:00 pm',
+    5: '2:30 pm',
+    6: '3:00 pm',
+    7: '3:30 pm',
+    8: '4:00 pm',
+    9: '4:30 pm'
+  };
+
+  const getHorarioRange = (horarioId: number | null): string => {
+    if (!horarioId) return 'Sin horario';
+    const startHour = 12 + Math.floor((horarioId - 1) / 2);
+    const startMinute = (horarioId - 1) % 2 === 0 ? 30 : 0;
+    const endHour = startMinute === 30 ? startHour + 1 : startHour;
+    const endMinute = startMinute === 30 ? 0 : 30;
+    return `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="min-h-screen p-4" style={{ backgroundColor: '#211B17' }}>
       <h1 className="text-white text-2xl md:text-3xl font-semibold mb-6">Confirmar Reservas</h1>
@@ -377,10 +405,8 @@ const RequestPage: React.FC = () => {
                                   {new Date(reserva.fecha_reserva).toLocaleDateString()}
                                 </td>
                                 <td className="border border-gray-300 p-2 text-center text-white">
-                                  {new Date(reserva.fecha_reserva).toLocaleTimeString('es-ES', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  })}
+                                  {getHorarioRange(reserva.horario_id)} {/* <-- Cambiar para usar la función */}
+
                                 </td>
                                 <td className="border border-gray-300 p-2 text-center text-white">
                                   {reserva.cantidad_personas}

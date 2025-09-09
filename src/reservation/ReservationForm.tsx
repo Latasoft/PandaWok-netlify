@@ -17,6 +17,7 @@ const ReservationForm: React.FC = () => {
     lastName: '',
     phone: '',
     email: '',
+    horario_id: null,
     comments: '',
     acceptTerms: false
   });
@@ -39,6 +40,19 @@ const ReservationForm: React.FC = () => {
     '12:30 pm', '1:00 pm', '1:30 pm', '2:00 pm', '2:30 pm',
     '3:00 pm', '3:30 pm', '4:00 pm', '4:30 pm'
   ];
+
+  // Mapeo de horas a IDs
+  const timeSlotToId = {
+    '12:30 pm': 1,
+    '1:00 pm': 2,
+    '1:30 pm': 3,
+    '2:00 pm': 4,
+    '2:30 pm': 5,
+    '3:00 pm': 6,
+    '3:30 pm': 7,
+    '4:00 pm': 8,
+    '4:30 pm': 9
+  };
 
   const countries = [
     { code: 'CL', name: 'Chile', dialCode: '+56', flag: '🇨🇱' },
@@ -78,6 +92,8 @@ const ReservationForm: React.FC = () => {
   };
 
   const handleConfirmModify = async () => {
+      const horarioId = timeSlotToId[(modifiedData.time || selectedTime) as keyof typeof timeSlotToId] || null; // <-- Obtener ID del horario modificado
+
   console.log('handleConfirmModify called'); // <-- Agregar para verificar si se ejecuta
   console.log('createdReservaId:', createdReservaId); // <-- Verificar si tiene valor
   if (!createdReservaId) {
@@ -93,8 +109,8 @@ const ReservationForm: React.FC = () => {
       apellido: formData.lastName,
       correo_electronico: modifiedData.email,
       telefono: modifiedData.phone,
+      horario_id: horarioId, // <-- Enviar ID
       mesa_id: null,
-      horario_id: null,
       fecha_reserva: fechaReservaISO,
       cantidad_personas: parseInt(modifiedData.people, 10),
       notas: modifiedData.comments,
@@ -142,88 +158,95 @@ const ReservationForm: React.FC = () => {
   }, []);
 
   const handleConfirmReservation = () => {
-    console.log('handleConfirmReservation called'); // <-- Agregar para verificar si se ejecuta múltiples veces
-    if (submitting) {
-      console.log('Already submitting, returning'); // <-- Agregar para evitar múltiples envíos
+  console.log('handleConfirmReservation called'); // <-- Agregar para verificar si se ejecuta
+  if (submitting) {
+    console.log('Already submitting, returning'); // <-- Agregar para evitar múltiples envíos
+    return;
+  }
+  (async () => {
+    if (!formData.firstName || !formData.lastName || !formData.email) {
+      alert('Complete los datos requeridos');
       return;
     }
-    (async () => {
-      if (!formData.firstName || !formData.lastName || !formData.email) {
-        alert('Complete los datos requeridos');
-        return;
+
+    setSubmitting(true);
+    try {
+      const fechaReservaISO = buildFechaReservaISO();
+      console.log('fechaReservaISO:', fechaReservaISO); // <-- Verificar fecha
+      const horarioId = timeSlotToId[selectedTime as keyof typeof timeSlotToId] || null; // <-- Obtener ID del horario
+      console.log('horarioId:', horarioId); // <-- Verificar ID
+      const payload = {
+        nombre: formData.firstName,
+        apellido: formData.lastName,
+        correo_electronico: formData.email,
+        telefono: formData.phone || getPhoneNumber(),
+        mesa_id: null,
+        horario_id: horarioId, // <-- Enviar ID en lugar de null
+        fecha_reserva: fechaReservaISO,
+        cantidad_personas: parseInt(selectedPeople, 10),
+        notas: `Horario preferido: ${selectedTime}. ${formData.comments || ''}`,
+      };
+      console.log('payload:', payload); // <-- Verificar payload
+
+      const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : 'http://localhost:5000';
+      console.log('base URL:', base); // <-- Verificar URL
+      const res = await fetch(`${base}/api/reservas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('fetch response status:', res.status); // <-- Verificar respuesta
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Error response:', text);
+        throw new Error('Error creando la reserva');
+      } else {
+        const data = await res.json();
+        console.log('response data:', data); // <-- Verificar respuesta del backend
+        setCreatedReservaId(data.reserva.id); // <-- Agregar para guardar el ID
       }
 
-      setSubmitting(true);
+      // -- Correo manejado totalmente desde el frontend (mismo patrón que RequestPage) --
       try {
-        const fechaReservaISO = buildFechaReservaISO();
-        const payload = {
-          nombre: formData.firstName,
-          apellido: formData.lastName,
-          correo_electronico: formData.email,
-          telefono: formData.phone || getPhoneNumber(),
-          mesa_id: null,
-          horario_id: null,
-          fecha_reserva: fechaReservaISO,
-          cantidad_personas: parseInt(selectedPeople, 10),
-          notas: `Horario preferido: ${selectedTime}. ${formData.comments || ''}`,
+        const dt = new Date(fechaReservaISO);
+        const templateParams = {
+          to_email: formData.email, // debe coincidir con "To: ${to_email}" en el template de EmailJS
+          customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
+          reservation_date: dt.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }),
+          reservation_time: selectedTime,
+          party_size: String(selectedPeople),
+          phone: formData.phone || getPhoneNumber(),
+          comments: formData.comments || '',
+          from_name: 'Panda Wok Valparaíso',
+          reply_to: 'no-reply@pandawok.cl'
         };
 
-        const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : 'http://localhost:5000';
-        const res = await fetch(`${base}/api/reservas`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        // debug: confirmar destinatario antes de enviar
+        console.log('EmailJS templateParams (creación):', templateParams);
 
-        if (!res.ok) {
-          const text = await res.text();
-          console.error('create reserva failed', res.status, text);
-          throw new Error('Error creando la reserva');
-        } else {
-          const data = await res.json();
-          setCreatedReservaId(data.reserva.id); // <-- Agregar para guardar el ID
-        }
+        await emailjs.send(
+          'service_1jci0tIBIo5',
+          'template_9d4paeh',
+          templateParams,
+          'BgQlos8cUH1tIBIo5'
+        );
 
-        // -- Correo manejado totalmente desde el frontend (mismo patrón que RequestPage) --
-        try {
-          const dt = new Date(fechaReservaISO);
-          const templateParams = {
-            to_email: formData.email, // debe coincidir con "To: ${to_email}" en el template de EmailJS
-            customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
-            reservation_date: dt.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }),
-            reservation_time: selectedTime,
-            party_size: String(selectedPeople),
-            phone: formData.phone || getPhoneNumber(),
-            comments: formData.comments || '',
-            from_name: 'Panda Wok Valparaíso',
-            reply_to: 'no-reply@pandawok.cl'
-          };
-
-          // debug: confirmar destinatario antes de enviar
-          console.log('EmailJS templateParams (creación):', templateParams);
-
-          await emailjs.send(
-            'service_1jci0t7',
-            'template_9d4paeh',
-            templateParams,
-            'BgQlos8cUH1tIBIo5'
-          );
-
-          console.log('EmailJS: correo de confirmación (creación) enviado a', formData.email);
-        } catch (emailErr) {
-          console.error('Error enviando EmailJS (creación):', emailErr);
-          // no bloqueamos la UX si falla el email
-        }
-
-        setShowConfirmForm(false);
-        setShowSuccessScreen(true);
-      } catch (error) {
-        console.error(error);
-        alert('Error al crear la reserva. Intente nuevamente.');
-      } finally {
-        setSubmitting(false);
+        console.log('EmailJS: correo de confirmación (creación) enviado a', formData.email);
+      } catch (emailErr) {
+        console.error('Error enviando EmailJS (creación):', emailErr);
+        // no bloqueamos la UX si falla el email
       }
-    })();
+
+      setShowConfirmForm(false);
+      setShowSuccessScreen(true);
+    } catch (error) {
+      console.error(error);
+      alert('Error al crear la reserva. Intente nuevamente.');
+    } finally {
+      setSubmitting(false);
+    }
+  })();
   };
 
   const handleModifyReservation = () => {
