@@ -3,6 +3,7 @@ import emailjs from '@emailjs/browser';
 import logo from '../assets/pandawok-brown.png';
 
 const ReservationForm: React.FC = () => {
+  const [createdReservaId, setCreatedReservaId] = useState<number | null>(null);
   const [selectedPeople, setSelectedPeople] = useState('2');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('12:30 pm');
@@ -76,6 +77,57 @@ const ReservationForm: React.FC = () => {
     setShowRequestForm(false);
   };
 
+  const handleConfirmModify = async () => {
+  console.log('handleConfirmModify called'); // <-- Agregar para verificar si se ejecuta
+  console.log('createdReservaId:', createdReservaId); // <-- Verificar si tiene valor
+  if (!createdReservaId) {
+    console.log('No createdReservaId, returning'); // <-- Agregar
+    return;
+  }
+  setSubmitting(true);
+  try {
+    const fechaReservaISO = buildFechaReservaISO(); // <-- Usar valores de modifiedData
+    console.log('fechaReservaISO:', fechaReservaISO); // <-- Verificar fecha
+    const payload = {
+      nombre: formData.firstName,
+      apellido: formData.lastName,
+      correo_electronico: modifiedData.email,
+      telefono: modifiedData.phone,
+      mesa_id: null,
+      horario_id: null,
+      fecha_reserva: fechaReservaISO,
+      cantidad_personas: parseInt(modifiedData.people, 10),
+      notas: modifiedData.comments,
+    };
+    console.log('payload:', payload); // <-- Verificar payload
+
+    const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : 'http://localhost:5000';
+    console.log('base URL:', base); // <-- Verificar URL
+    const res = await fetch(`${base}/api/reservas/${createdReservaId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    console.log('fetch response status:', res.status); // <-- Verificar respuesta
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('Error response:', text);
+      throw new Error('Error modificando la reserva');
+    }
+
+    alert('Reserva modificada exitosamente');
+    setShowModifyForm(false);
+    setShowSuccessScreen(true);
+  } catch (error) {
+    console.error('Error in handleConfirmModify:', error); // <-- Verificar errores
+    alert('Error al modificar la reserva');
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+
   const handleContinueReservation = () => {
     setShowConfirmForm(true);
   };
@@ -90,6 +142,11 @@ const ReservationForm: React.FC = () => {
   }, []);
 
   const handleConfirmReservation = () => {
+    console.log('handleConfirmReservation called'); // <-- Agregar para verificar si se ejecuta múltiples veces
+    if (submitting) {
+      console.log('Already submitting, returning'); // <-- Agregar para evitar múltiples envíos
+      return;
+    }
     (async () => {
       if (!formData.firstName || !formData.lastName || !formData.email) {
         alert('Complete los datos requeridos');
@@ -122,6 +179,9 @@ const ReservationForm: React.FC = () => {
           const text = await res.text();
           console.error('create reserva failed', res.status, text);
           throw new Error('Error creando la reserva');
+        } else {
+          const data = await res.json();
+          setCreatedReservaId(data.reserva.id); // <-- Agregar para guardar el ID
         }
 
         // -- Correo manejado totalmente desde el frontend (mismo patrón que RequestPage) --
@@ -787,20 +847,11 @@ const ReservationForm: React.FC = () => {
               Cancelar reserva
             </button>
             <button 
-              onClick={() => {
-                if (modifiedData.people) setSelectedPeople(modifiedData.people);
-                if (modifiedData.date) setSelectedDate(modifiedData.date);
-                if (modifiedData.time) setSelectedTime(modifiedData.time);
-                if (modifiedData.email) setFormData(prev => ({ ...prev, email: modifiedData.email }));
-                if (modifiedData.comments) setFormData(prev => ({ ...prev, comments: modifiedData.comments }));
-                
-                alert('Reserva modificada exitosamente');
-                setShowModifyForm(false);
-                setShowSuccessScreen(true);
-              }}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+              onClick={handleConfirmModify} // <-- Cambiar para llamar a la función
+              disabled={submitting} // <-- Agregar disabled
+              className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-lg transition-colors"
             >
-              Modificar reserva
+              {submitting ? 'Modificando...' : 'Modificar reserva'}
             </button>
           </div>
         </div>
