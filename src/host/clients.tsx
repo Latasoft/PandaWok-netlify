@@ -115,6 +115,18 @@ const Clients: React.FC = () => {
     );
   });
 
+    const parseDate = (dateStr: string): string | null => {
+    if (!dateStr || dateStr === '-') return null;
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return null;
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Meses en JS son 0-indexados
+    const year = parseInt(parts[2], 10);
+    const date = new Date(year, month, day);
+    if (isNaN(date.getTime())) return null;
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD
+  };
+
   function applyFilter() {
     setAppliedSearch(search);
   }
@@ -223,6 +235,10 @@ const Clients: React.FC = () => {
     }
   }
 
+
+ // Función para manejar la importación de archivos Excel
+// ...existing code...
+
   // Función para manejar la importación de archivos Excel
   const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -236,19 +252,25 @@ const Clients: React.FC = () => {
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+        console.log('Raw JSON data from Excel:', jsonData);
+
         // Convertir los datos al formato esperado por el backend
         const formattedData = jsonData.map((row: any) => ({
           nombre: row['Nombre']?.split(' ')[0] || '',
           apellido: row['Nombre']?.split(' ').slice(1).join(' ') || '',
-          telefono: row['Teléfono']?.toString() || '',
-          correo_electronico: row['Correo'] || '',
+          telefono: `${row['Cod. País'] || ''} ${row['Teléfono'] || ''}`.trim(),
+          correo_electronico: row['Correo Electrónico'] || '',
+          // Ignorar Empresa: no se incluye en el mapeo
           visitas: parseInt(row['Visitas']) || 0,
-          ultima_visita: row['Última Visita'] === '-' ? null : row['Última Visita'],
+          ultima_visita: parseDate(row['Última Visita']),
           tags: row['Tags'] ? row['Tags'].split(', ').filter((t: string) => t) : [],
-          gasto_total: parseFloat(row['Gasto Total (CLP)']) || 0,
-          gasto_por_visita: parseFloat(row['Gasto Promedio por Visita (CLP)']) || 0,
-          notas: row['Notas'] || ''
+          gasto_total: parseFloat(row['Gasto Total']) || 0,
+          gasto_por_visita: parseFloat(row['Gasto/Visita']) || 0,
+          notas: row['Nota del Perfil'] || '',
+          fecha_creacion: parseDate(row['Fecha de Creación'])
         }));
+
+        console.log('Formatted data to send:', formattedData);
 
         // Enviar al backend
         const response = await axios.post(`${API_BASE_URL}/api/clients/import`, formattedData);
@@ -269,6 +291,11 @@ const Clients: React.FC = () => {
     // Limpiar el input
     e.target.value = '';
   };
+
+// ...existing code...
+
+
+// ...existing code...
 
   return (
     <div className="p-6 bg-[#F7F3ED] min-h-screen">
