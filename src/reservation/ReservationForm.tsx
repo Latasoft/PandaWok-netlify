@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import emailjs from '@emailjs/browser';
 import logo from '../assets/pandawok-brown.png';
 
 const ReservationForm: React.FC = () => {
+  const [createdReservaId, setCreatedReservaId] = useState<number | null>(null);
   const [selectedPeople, setSelectedPeople] = useState('2');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('12:30 pm');
@@ -15,6 +17,7 @@ const ReservationForm: React.FC = () => {
     lastName: '',
     phone: '',
     email: '',
+    horario_id: null,
     comments: '',
     acceptTerms: false
   });
@@ -31,11 +34,25 @@ const ReservationForm: React.FC = () => {
     email: '',
     comments: ''
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const timeSlots = [
     '12:30 pm', '1:00 pm', '1:30 pm', '2:00 pm', '2:30 pm',
     '3:00 pm', '3:30 pm', '4:00 pm', '4:30 pm'
   ];
+
+  // Mapeo de horas a IDs
+  const timeSlotToId = {
+    '12:30 pm': 1,
+    '1:00 pm': 2,
+    '1:30 pm': 3,
+    '2:00 pm': 4,
+    '2:30 pm': 5,
+    '3:00 pm': 6,
+    '3:30 pm': 7,
+    '4:00 pm': 8,
+    '4:30 pm': 9
+  };
 
   const countries = [
     { code: 'CL', name: 'Chile', dialCode: '+56', flag: '🇨🇱' },
@@ -74,12 +91,162 @@ const ReservationForm: React.FC = () => {
     setShowRequestForm(false);
   };
 
+  const handleConfirmModify = async () => {
+      const horarioId = timeSlotToId[(modifiedData.time || selectedTime) as keyof typeof timeSlotToId] || null; // <-- Obtener ID del horario modificado
+
+  console.log('handleConfirmModify called'); // <-- Agregar para verificar si se ejecuta
+  console.log('createdReservaId:', createdReservaId); // <-- Verificar si tiene valor
+  if (!createdReservaId) {
+    console.log('No createdReservaId, returning'); // <-- Agregar
+    return;
+  }
+  setSubmitting(true);
+  try {
+    const fechaReservaISO = buildFechaReservaISO(); // <-- Usar valores de modifiedData
+    console.log('fechaReservaISO:', fechaReservaISO); // <-- Verificar fecha
+    const payload = {
+      nombre: formData.firstName,
+      apellido: formData.lastName,
+      correo_electronico: modifiedData.email,
+      telefono: modifiedData.phone,
+      horario_id: horarioId, // <-- Enviar ID
+      mesa_id: null,
+      fecha_reserva: fechaReservaISO,
+      cantidad_personas: parseInt(modifiedData.people, 10),
+      notas: modifiedData.comments,
+    };
+    console.log('payload:', payload); // <-- Verificar payload
+
+    const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : 'http://localhost:5000';
+    console.log('base URL:', base); // <-- Verificar URL
+    const res = await fetch(`${base}/api/reservas/${createdReservaId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    console.log('fetch response status:', res.status); // <-- Verificar respuesta
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('Error response:', text);
+      throw new Error('Error modificando la reserva');
+    }
+
+    alert('Reserva modificada exitosamente');
+    setShowModifyForm(false);
+    setShowSuccessScreen(true);
+  } catch (error) {
+    console.error('Error in handleConfirmModify:', error); // <-- Verificar errores
+    alert('Error al modificar la reserva');
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+
   const handleContinueReservation = () => {
     setShowConfirmForm(true);
   };
 
+  useEffect(() => {
+    // Inicializa EmailJS en este componente (es idempotente)
+    try {
+      emailjs.init('BgQlos8cUH1tIBIo5');
+    } catch (err) {
+      console.warn('EmailJS init warning', err);
+    }
+  }, []);
+
   const handleConfirmReservation = () => {
-    setShowSuccessScreen(true);
+  console.log('handleConfirmReservation called'); // <-- Agregar para verificar si se ejecuta
+  if (submitting) {
+    console.log('Already submitting, returning'); // <-- Agregar para evitar múltiples envíos
+    return;
+  }
+  (async () => {
+    if (!formData.firstName || !formData.lastName || !formData.email) {
+      alert('Complete los datos requeridos');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const fechaReservaISO = buildFechaReservaISO();
+      console.log('fechaReservaISO:', fechaReservaISO); // <-- Verificar fecha
+      const horarioId = timeSlotToId[selectedTime as keyof typeof timeSlotToId] || null; // <-- Obtener ID del horario
+      console.log('horarioId:', horarioId); // <-- Verificar ID
+      const payload = {
+        nombre: formData.firstName,
+        apellido: formData.lastName,
+        correo_electronico: formData.email,
+        telefono: formData.phone || getPhoneNumber(),
+        mesa_id: null,
+        horario_id: horarioId, // <-- Enviar ID en lugar de null
+        fecha_reserva: fechaReservaISO,
+        cantidad_personas: parseInt(selectedPeople, 10),
+        notas: `Horario preferido: ${selectedTime}. ${formData.comments || ''}`,
+      };
+      console.log('payload:', payload); // <-- Verificar payload
+
+      const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : 'http://localhost:5000';
+      console.log('base URL:', base); // <-- Verificar URL
+      const res = await fetch(`${base}/api/reservas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('fetch response status:', res.status); // <-- Verificar respuesta
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Error response:', text);
+        throw new Error('Error creando la reserva');
+      } else {
+        const data = await res.json();
+        console.log('response data:', data); // <-- Verificar respuesta del backend
+        setCreatedReservaId(data.reserva.id); // <-- Agregar para guardar el ID
+      }
+
+      // -- Correo manejado totalmente desde el frontend (mismo patrón que RequestPage) --
+      try {
+        const dt = new Date(fechaReservaISO);
+        const templateParams = {
+          to_email: formData.email, // debe coincidir con "To: ${to_email}" en el template de EmailJS
+          customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
+          reservation_date: dt.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }),
+          reservation_time: selectedTime,
+          party_size: String(selectedPeople),
+          phone: formData.phone || getPhoneNumber(),
+          comments: formData.comments || '',
+          from_name: 'Panda Wok Valparaíso',
+          reply_to: 'no-reply@pandawok.cl'
+        };
+
+        // debug: confirmar destinatario antes de enviar
+        console.log('EmailJS templateParams (creación):', templateParams);
+
+        await emailjs.send(
+          'service_1jci0tIBIo5',
+          'template_9d4paeh',
+          templateParams,
+          'BgQlos8cUH1tIBIo5'
+        );
+
+        console.log('EmailJS: correo de confirmación (creación) enviado a', formData.email);
+      } catch (emailErr) {
+        console.error('Error enviando EmailJS (creación):', emailErr);
+        // no bloqueamos la UX si falla el email
+      }
+
+      setShowConfirmForm(false);
+      setShowSuccessScreen(true);
+    } catch (error) {
+      console.error(error);
+      alert('Error al crear la reserva. Intente nuevamente.');
+    } finally {
+      setSubmitting(false);
+    }
+  })();
   };
 
   const handleModifyReservation = () => {
@@ -119,6 +286,42 @@ const ReservationForm: React.FC = () => {
     return formData.phone.startsWith(dialCode) 
       ? formData.phone.slice(dialCode.length).trim()
       : formData.phone;
+  };
+
+  // Construye un ISO datetime a partir de selectedDate y selectedTime
+  const buildFechaReservaISO = (): string => {
+    try {
+      if (!selectedDate) return new Date().toISOString();
+
+      const parts = selectedDate.split(', ');
+      if (parts.length < 2) return new Date().toISOString();
+      const dayMonth = parts[1]; // "Ene 12"
+      const [monthAbbr, dayStr] = dayMonth.split(' ');
+      const day = parseInt(dayStr, 10);
+
+      const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const monthIndex = monthNames.indexOf(monthAbbr);
+      const year = currentMonth.getFullYear();
+
+      if (monthIndex === -1 || isNaN(day)) return new Date().toISOString();
+
+      const tm = selectedTime.trim().toLowerCase();
+      const timeMatch = tm.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/);
+      let hours = 0;
+      let minutes = 0;
+      if (timeMatch) {
+        hours = parseInt(timeMatch[1], 10);
+        minutes = parseInt(timeMatch[2], 10);
+        const ampm = timeMatch[3];
+        if (ampm === 'pm' && hours < 12) hours += 12;
+        if (ampm === 'am' && hours === 12) hours = 0;
+      }
+
+      const dt = new Date(year, monthIndex, day, hours, minutes, 0);
+      return dt.toISOString();
+    } catch (err) {
+      return new Date().toISOString();
+    }
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -611,18 +814,21 @@ const ReservationForm: React.FC = () => {
               <div>
                 <label className="block text-sm text-gray-500 mb-1">Hora</label>
                 <select 
-                  value={modifiedData.time || selectedTime}
-                  onChange={(e) => setModifiedData(prev => ({ ...prev, time: e.target.value }))
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-all duration-200 hover:border-gray-400 outline-none"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat', backgroundSize: '16px' }}
-                >
-                  {timeSlots.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
+  value={timeSlotToId[modifiedData.time as keyof typeof timeSlotToId] || timeSlotToId[selectedTime as keyof typeof timeSlotToId] || 1}
+  onChange={(e) => {
+    const selectedId = parseInt(e.target.value);
+    const selectedTimeString = Object.keys(timeSlotToId).find(key => timeSlotToId[key as keyof typeof timeSlotToId] === selectedId);
+    setModifiedData(prev => ({ ...prev, time: selectedTimeString || selectedTime }));
+  }}
+  className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-all duration-200 hover:border-gray-400 outline-none"
+  style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat', backgroundSize: '16px' }}
+>
+  {timeSlots.map((time) => (
+    <option key={time} value={timeSlotToId[time as keyof typeof timeSlotToId]}>
+      {time}
+    </option>
+  ))}
+</select>
               </div>
               
               <div>
@@ -667,20 +873,11 @@ const ReservationForm: React.FC = () => {
               Cancelar reserva
             </button>
             <button 
-              onClick={() => {
-                if (modifiedData.people) setSelectedPeople(modifiedData.people);
-                if (modifiedData.date) setSelectedDate(modifiedData.date);
-                if (modifiedData.time) setSelectedTime(modifiedData.time);
-                if (modifiedData.email) setFormData(prev => ({ ...prev, email: modifiedData.email }));
-                if (modifiedData.comments) setFormData(prev => ({ ...prev, comments: modifiedData.comments }));
-                
-                alert('Reserva modificada exitosamente');
-                setShowModifyForm(false);
-                setShowSuccessScreen(true);
-              }}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+              onClick={handleConfirmModify} // <-- Cambiar para llamar a la función
+              disabled={submitting} // <-- Agregar disabled
+              className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-lg transition-colors"
             >
-              Modificar reserva
+              {submitting ? 'Modificando...' : 'Modificar reserva'}
             </button>
           </div>
         </div>

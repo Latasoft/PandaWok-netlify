@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import NewRequestModal from '../components/NewRequestModal';
+import emailjs from '@emailjs/browser';
 
 // Define una interfaz para los datos de la solicitud, similar a lo que enviará el modal
 interface RequestData {
@@ -26,6 +27,7 @@ interface Cliente {
   nombre: string;
   apellido: string;
   correo_electronico: string;
+  telefono?: string;
 }
 
 interface Reserva {
@@ -35,10 +37,11 @@ interface Reserva {
   estado: string;
   cantidad_personas: number;
   notas: string | null;
+  horario_id: number | null; // <-- Agregar
 }
 
 interface PaginationMeta {
-  page: number;
+page: number;
   limit: number;
   total: number;
   totalPages: number;
@@ -140,7 +143,11 @@ const RequestPage: React.FC = () => {
       params.append('limit', String(limit));
       url += `?${params.toString()}`;
       const res = await api.get(url);
-      setReservas(res.data.reservas);
+      // ordenar por id ascendente antes de setear el estado
+      const ordenadas: Reserva[] = Array.isArray(res.data.reservas)
+        ? [...res.data.reservas].sort((a: Reserva, b: Reserva) => b.id - a.id)
+        : [];
+      setReservas(ordenadas);
       if (res.data.pagination) {
         setPagination(res.data.pagination);
       }
@@ -164,25 +171,28 @@ const RequestPage: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    // inicializar EmailJS una sola vez en el frontend
+    try {
+      emailjs.init('BgQlos8cUH1tIBIo5');
+    } catch (err) {
+      console.warn('EmailJS init warning', err);
+    }
+  }, []); // <-- vacío: solo al montar
+
+  useEffect(() => {
+    fetchReservas();
+  }, [page, limit]);
+
   const actualizarEstado = async (id: number) => {
     const nuevoEstado = estadoSeleccionado[id];
     if (!nuevoEstado) return;
 
     setLoadingEstadoId(id);
     try {
+      // Actualiza estado en backend (solo eso)
       await api.post(`reservas/${id}/estado`, { estado: nuevoEstado });
-      // refrescar listado actual
       await fetchReservas();
-      // Si se ha confirmado la reserva, redirigir a timeline tab "todas" pasando la fecha de la reserva
-      if (nuevoEstado.toLowerCase() === 'confirmada') {
-        const reserva = reservas.find(r => r.id === id);
-        if (reserva) {
-          const fechaISO = new Date(reserva.fecha_reserva).toISOString().split('T')[0];
-          navigate(`/timeline?t=todas&fecha=${fechaISO}#reserva-${id}`);
-        } else {
-          navigate(`/timeline?t=todas`);
-        }
-      }
     } catch {
       alert("Error al actualizar estado");
     } finally {
@@ -200,6 +210,12 @@ const RequestPage: React.FC = () => {
   };
 
   useEffect(() => {
+    // inicializar EmailJS (usa sólo la public key en el frontend)
+    try {
+      emailjs.init('BgQlos8cUH1tIBIo5');
+    } catch (err) {
+      console.warn('EmailJS init warning', err);
+    }
     fetchReservas();
   }, [page, limit]);
 
@@ -216,6 +232,32 @@ const RequestPage: React.FC = () => {
   fetchReservas({ applyFilters: true, resetPage: true });
   };
 
+  const timeSlots = [
+    '12:30 pm', '1:00 pm', '1:30 pm', '2:00 pm', '2:30 pm',
+    '3:00 pm', '3:30 pm', '4:00 pm', '4:30 pm'
+  ];
+
+  // Mapeo de IDs a horas
+  const idToTimeSlot = {
+    1: '12:30 pm',
+    2: '1:00 pm',
+    3: '1:30 pm',
+    4: '2:00 pm',
+    5: '2:30 pm',
+    6: '3:00 pm',
+    7: '3:30 pm',
+    8: '4:00 pm',
+    9: '4:30 pm'
+  };
+
+const getHorarioRange = (horarioId: number | null): string => {
+  if (!horarioId) return 'Sin horario';
+  const startHour = 12 + Math.ceil((horarioId - 1) / 2); // <-- Cambiar Math.floor por Math.ceil
+  const startMinute = horarioId % 2 === 1 ? 30 : 0;
+  const endHour = startMinute === 30 ? startHour + 1 : startHour;
+  const endMinute = startMinute === 30 ? 0 : 30;
+  return `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+};
   return (
     <div className="min-h-screen p-4" style={{ backgroundColor: '#211B17' }}>
       <h1 className="text-white text-2xl md:text-3xl font-semibold mb-6">Confirmar Reservas</h1>
@@ -323,10 +365,8 @@ const RequestPage: React.FC = () => {
                                   {new Date(reserva.fecha_reserva).toLocaleDateString()}
                                 </td>
                                 <td className="border border-gray-300 p-2 text-center text-white">
-                                  {new Date(reserva.fecha_reserva).toLocaleTimeString('es-ES', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  })}
+                                  {getHorarioRange(reserva.horario_id)} {/* <-- Cambiar para usar la función */}
+
                                 </td>
                                 <td className="border border-gray-300 p-2 text-center text-white">
                                   {reserva.cantidad_personas}

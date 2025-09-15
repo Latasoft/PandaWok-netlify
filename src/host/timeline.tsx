@@ -404,6 +404,9 @@ const reloadReservas = async () => {
     }
   }
 
+  // Define default mesa (first table in first salon)
+  const defaultMesa = mesas.find(m => m.salon_id === salones[0]?.id) || null;
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
       {/* Use standard Header for both mobile and desktop */}
@@ -606,13 +609,15 @@ const reloadReservas = async () => {
                         </div>
                       )}
                       {/* Botón para asignar mesa si está confirmada y sin mesa */}
-                      {reserva.status === 'confirmada' && (!reserva.mesa_id || reserva.mesa_id === null) && mesaSeleccionada && (
+                      {reserva.status === 'confirmada' && (!reserva.mesa_id || reserva.mesa_id === null) && (mesaSeleccionada || defaultMesa) && (
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
+                            const mesaToAssign = mesaSeleccionada || defaultMesa;
+                            if (!mesaToAssign) return;
                             try {
                               await axios.put(`${API_BASE_URL}/api/reservas/${reserva.id}`, {
-                                mesa_id: mesaSeleccionada.id,
+                                mesa_id: mesaToAssign.id,
                                 cliente_id: reserva.cliente_id,
                                 horario_id: reserva.horario_id,
                                 fecha_reserva: reserva.fecha_reserva.split('T')[0],
@@ -628,9 +633,9 @@ const reloadReservas = async () => {
                             }
                           }}
                           className="mt-2 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs font-semibold self-start"
-                          title={mesaSeleccionada ? `Asignar a mesa ${mesaSeleccionada.numero_mesa}` : 'Seleccione una mesa'}
+                          title={(mesaSeleccionada || defaultMesa) ? `Asignar a mesa ${(mesaSeleccionada || defaultMesa)?.numero_mesa}` : 'Seleccione una mesa'}
                         >
-                          Asignar a Mesa Seleccionada
+                          Asignar a Mesa {(mesaSeleccionada || defaultMesa)?.numero_mesa}
                         </button>
                       )}
                     </motion.div>
@@ -1051,13 +1056,15 @@ const reloadReservas = async () => {
                             🕐 {reserva.horario_descripcion}
                           </p>
                         )}
-                        {reserva.status === 'confirmada' && (!reserva.mesa_id || reserva.mesa_id === null) && mesaSeleccionada && (
+                        {reserva.status === 'confirmada' && (!reserva.mesa_id || reserva.mesa_id === null) && (mesaSeleccionada || defaultMesa) && (
                           <button
                             onClick={async (e) => {
                               e.stopPropagation();
+                              const mesaToAssign = mesaSeleccionada || defaultMesa;
+                              if (!mesaToAssign) return;
                               try {
                                 await axios.put(`${API_BASE_URL}/api/reservas/${reserva.id}`, {
-                                  mesa_id: mesaSeleccionada.id,
+                                  mesa_id: mesaToAssign.id,
                                   cliente_id: reserva.cliente_id,
                                   horario_id: reserva.horario_id,
                                   fecha_reserva: reserva.fecha_reserva.split('T')[0],
@@ -1075,7 +1082,7 @@ const reloadReservas = async () => {
                             }}
                             className="mt-2 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs font-semibold"
                           >
-                            Asignar a Mesa Seleccionada
+                            Asignar a Mesa {(mesaSeleccionada || defaultMesa)?.numero_mesa}
                           </button>
                         )}
                       </div>
