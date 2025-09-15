@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import NewRequestModal from '../components/NewRequestModal';
 
@@ -55,6 +56,7 @@ const api = axios.create({
 const estadosPosibles = ["pendiente", "confirmada", "cancelada"];
 
 const RequestPage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, ] = useState('Reserva más cercana');
   const [showFilters, setShowFilters] = useState(false);
@@ -169,7 +171,18 @@ const RequestPage: React.FC = () => {
     setLoadingEstadoId(id);
     try {
       await api.post(`reservas/${id}/estado`, { estado: nuevoEstado });
+      // refrescar listado actual
       await fetchReservas();
+      // Si se ha confirmado la reserva, redirigir a timeline tab "todas" pasando la fecha de la reserva
+      if (nuevoEstado.toLowerCase() === 'confirmada') {
+        const reserva = reservas.find(r => r.id === id);
+        if (reserva) {
+          const fechaISO = new Date(reserva.fecha_reserva).toISOString().split('T')[0];
+          navigate(`/timeline?t=todas&fecha=${fechaISO}#reserva-${id}`);
+        } else {
+          navigate(`/timeline?t=todas`);
+        }
+      }
     } catch {
       alert("Error al actualizar estado");
     } finally {

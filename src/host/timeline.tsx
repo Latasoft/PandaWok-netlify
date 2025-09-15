@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Move, Menu, X } from 'lucide-react';
@@ -107,9 +108,11 @@ const Timeline: React.FC = () => {
   const [showAgregarMesaModal, setShowAgregarMesaModal] = useState(false);
   const [showWalkInModal, setShowWalkInModal] = useState(false);
   type TabType = 'mesa' | 'todas';
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<TabType>('mesa');
   const [todasReservas, setTodasReservas] = useState<Reserva[]>([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(new Date().toISOString().split('T')[0]);
+  const pendingScrollIdRef = useRef<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -122,6 +125,40 @@ const Timeline: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Leer query params (t, fecha) al montar
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('t');
+    const fecha = params.get('fecha');
+    if (fecha) {
+      setFechaSeleccionada(fecha);
+    }
+    if (tab === 'todas') {
+      setActiveTab('todas');
+      fetchTodasReservasPorFecha();
+    }
+    // Si hay hash #reserva-<id> guardarlo para scroll posterior
+    if (location.hash.startsWith('#reserva-')) {
+      pendingScrollIdRef.current = location.hash.substring(1); // remove '#'
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Hacer scroll a la reserva si está en la lista de "todas"
+  useEffect(() => {
+    if (activeTab === 'todas' && pendingScrollIdRef.current) {
+      const el = document.getElementById(pendingScrollIdRef.current);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2','ring-orange-500','transition');
+        setTimeout(() => {
+          el.classList.remove('ring-2','ring-orange-500');
+        }, 3000);
+        pendingScrollIdRef.current = null;
+      }
+    }
+  }, [activeTab, todasReservas]);
 
   // Carga salones
   useEffect(() => {
@@ -407,7 +444,6 @@ const reloadReservas = async () => {
                 Mesa Actual
               </button>
             </div>
-
             <label htmlFor="fechaSeleccionada" className="mb-3 font-semibold text-lg text-[#3C2022]">
               Seleccionar Fecha
             </label>
@@ -538,7 +574,8 @@ const reloadReservas = async () => {
                   todasReservas.map((reserva) => (
                     <motion.div
                       whileHover={{ scale: 1.02 }}
-                      key={reserva.id}
+            key={reserva.id}
+            id={`reserva-${reserva.id}`}
                       onClick={() => setReservaSeleccionada(reserva)}
                       className={`p-4 rounded-lg border shadow-sm cursor-pointer transition flex flex-col gap-1 ${
                         reservaSeleccionada?.id === reserva.id
@@ -932,6 +969,7 @@ const reloadReservas = async () => {
                       sortReservasByHorario(reservasMesa).map((reserva) => (
                         <div
                           key={reserva.id}
+                          id={`reserva-${reserva.id}`}
                           onClick={() => setReservaSeleccionada(reserva)}
                           className="p-3 bg-white rounded-lg border shadow-sm"
                         >
