@@ -99,9 +99,9 @@ const Clients: React.FC = () => {
   const [search, setSearch] = useState('');
   
   // Estados para filtros avanzados
-  const [filtroFrecuente, setFiltroFrecuente] = useState<string>('todos');
-  const [filtroListaNegra, setFiltroListaNegra] = useState<string>('todos');
-  const [filtroMembresia, setFiltroMembresia] = useState<string>('');
+  const [filtroFrecuente, ] = useState<string>('todos');
+  const [filtroListaNegra, ] = useState<string>('todos');
+  const [filtroMembresia, ] = useState<string>('');
   
   // Estados de paginación del backend
   const [currentPage, setCurrentPage] = useState(1);
