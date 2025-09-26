@@ -20,6 +20,45 @@ export interface Client {
   notas: string;
 }
 
+interface RawClientData {
+  id: string | number;
+  nombre: string;
+  apellido: string;
+  correo_electronico: string;
+  telefono: string;
+  visitas: string | number;
+  ultima_visita: string | null;
+  tags: string[] | unknown;
+  gasto_total: string | number;
+  gasto_por_visita: string | number;
+  notas: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+  pagination?: {
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+interface ExcelRowData {
+  'Nombre'?: string;
+  'Cod. País'?: string;
+  'Teléfono'?: string;
+  'Correo Electrónico'?: string;
+  'Visitas'?: string | number;
+  'Última Visita'?: string;
+  'Tags'?: string;
+  'Gasto Total'?: string | number;
+  'Gasto/Visita'?: string | number;
+  'Nota del Perfil'?: string;
+  'Fecha de Creación'?: string;
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Colores adaptados a tonos cafés:
@@ -58,7 +97,16 @@ const Clients: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
+  
+  // Estados para filtros avanzados
+  const [filtroFrecuente, setFiltroFrecuente] = useState<string>('todos');
+  const [filtroListaNegra, setFiltroListaNegra] = useState<string>('todos');
+  const [filtroMembresia, setFiltroMembresia] = useState<string>('');
+  
+  // Estados de paginación del backend
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 20;
 
   // Crear modal
   const [showCreate, setShowCreate] = useState(false);
@@ -77,19 +125,39 @@ const Clients: React.FC = () => {
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 20;
-
-  useEffect(() => {
-    fetchClients();
-  }, []);
-
-  async function fetchClients() {
+  const fetchClients = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await axios.get<{ success: boolean; data: any[] }>(`${API_BASE_URL}/api/clients`);
-      const mapped: Client[] = data.data.map((c) => ({
+      // Construir URL con parámetros de búsqueda
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: pageSize.toString(),
+      });
+
+      // Agregar filtros si están activos
+      if (search.trim()) {
+        params.append('busqueda', search.trim());
+      }
+      if (filtroFrecuente !== 'todos') {
+        params.append('es_frecuente', filtroFrecuente === 'si' ? 'true' : 'false');
+      }
+      if (filtroListaNegra !== 'todos') {
+        params.append('en_lista_negra', filtroListaNegra === 'si' ? 'true' : 'false');
+      }
+      if (filtroMembresia.trim()) {
+        params.append('nivel_membresia', filtroMembresia.trim());
+      }
+
+  
+      
+      // CAMBIO: Siempre usar el endpoint 'clients/buscar' para consistencia en paginación
+      const endpoint = 'clients/buscar';
+      const { data } = await axios.get<ApiResponse<RawClientData[]>>(
+        `${API_BASE_URL}/api/${endpoint}?${params.toString()}`
+      );
+
+      const mapped: Client[] = data.data.map((c: RawClientData) => ({
         id: String(c.id),
         nombre: c.nombre,
         apellido: c.apellido,
@@ -102,29 +170,59 @@ const Clients: React.FC = () => {
         gasto_por_visita: Number(c.gasto_por_visita) || 0,
         notas: c.notas || '',
       }));
+
       setClients(mapped);
-    } catch (err: any) {
-      setError(err.message);
+      
+      // CAMBIO: Siempre usar la paginación del backend cuando esté disponible
+      if (data.pagination) {
+        setTotalPages(data.pagination.totalPages);
+      } else {
+        // Fallback: si no hay paginación, asumir que es página única
+        setTotalPages(1);
+      }
+      
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(errorMessage);
+      setClients([]);
+      setTotalPages(1); // Reset pagination on error
     } finally {
       setLoading(false);
     }
+  }, [currentPage, search, filtroFrecuente, filtroListaNegra, filtroMembresia, pageSize]);
+
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
+
+  // Función para aplicar filtros (activar búsqueda)
+  function applyFilter() {
+    setCurrentPage(1); // Reset to first page on filter
+    // No necesitamos llamar fetchClients aquí porque useEffect lo manejará
   }
 
-  const filtered = clients.filter((c) => {
-    if (!appliedSearch) return true;
-    const t = appliedSearch.toLowerCase();
-    return (
-      (`${c.nombre} ${c.apellido}`).toLowerCase().includes(t) ||
-      c.telefono.toLowerCase().includes(t) ||
-      c.correo_electronico.toLowerCase().includes(t) ||
-      c.tags.some((tg) => tg.toLowerCase().includes(t))
-    );
-  });
+  // CAMBIO: Agregar función separada para manejar cambios de página
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
 
-  const totalPages = Math.ceil(filtered.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedClients = filtered.slice(startIndex, endIndex);
+  // CAMBIO: Mejorar el manejo de la paginación
+  useEffect(() => {
+    // Reset a página 1 cuando cambian los filtros, pero no cuando solo cambia la página
+    if (currentPage === 1) {
+      fetchClients();
+    } else {
+      setCurrentPage(1);
+    }
+  }, [search, filtroFrecuente, filtroListaNegra, filtroMembresia]);
+
+  // Efecto separado para cuando solo cambia la página
+  useEffect(() => {
+    fetchClients();
+  }, [currentPage, pageSize]);
+
+  // Los clientes ya están filtrados y paginados por el backend
+  const paginatedClients = clients;
 
   const parseDate = (dateStr: string): string | null => {
     if (!dateStr || dateStr === '-') return null;
@@ -137,11 +235,6 @@ const Clients: React.FC = () => {
     if (isNaN(date.getTime())) return null;
     return date.toISOString().split('T')[0]; // YYYY-MM-DD
   };
-
-  function applyFilter() {
-    setAppliedSearch(search);
-    setCurrentPage(1); // Reset to first page on filter
-  }
 
   function exportExcel() {
     const ws = XLSX.utils.json_to_sheet(
@@ -172,7 +265,7 @@ const Clients: React.FC = () => {
     }
     setCreating(true);
     try {
-      const { data } = await axios.post<{ success: boolean; message?: string }>(
+      const { data } = await axios.post<ApiResponse<unknown>>(
         `${API_BASE_URL}/api/clients`,
         newData
       );
@@ -183,8 +276,13 @@ const Clients: React.FC = () => {
       } else {
         setCreateError(data.message || 'Error al crear');
       }
-    } catch (err: any) {
-      setCreateError(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      if (axios.isAxiosError(err)) {
+        setCreateError(err.response?.data?.message || errorMessage);
+      } else {
+        setCreateError(errorMessage);
+      }
     } finally {
       setCreating(false);
     }
@@ -198,7 +296,7 @@ const Clients: React.FC = () => {
 
   // Calcula gasto_total automáticamente en base a visitas * gasto_por_visita
   function handleEditField<K extends keyof Client>(field: K, value: Client[K]) {
-    let newEditData = { ...editData, [field]: value };
+    const newEditData = { ...editData, [field]: value };
 
     if (field === 'visitas' || field === 'gasto_por_visita') {
       const visitas = Number(field === 'visitas' ? value : newEditData.visitas ?? 0);
@@ -213,7 +311,7 @@ const Clients: React.FC = () => {
     if (!editData.id) return;
     setEditing(true);
     try {
-      const { data } = await axios.put<{ success: boolean; message?: string }>(
+      const { data } = await axios.put<ApiResponse<unknown>>(
         `${API_BASE_URL}/api/clients/${editData.id}`,
         editData
       );
@@ -223,8 +321,13 @@ const Clients: React.FC = () => {
       } else {
         setEditError(data.message || 'Error al actualizar');
       }
-    } catch (err: any) {
-      setEditError(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      if (axios.isAxiosError(err)) {
+        setEditError(err.response?.data?.message || errorMessage);
+      } else {
+        setEditError(errorMessage);
+      }
     } finally {
       setEditing(false);
     }
@@ -241,9 +344,14 @@ const Clients: React.FC = () => {
       }
 
       fetchClients();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al eliminar cliente:', error);
-      alert(error.response?.data?.message || error.message || 'Error al eliminar cliente');
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.message || errorMessage);
+      } else {
+        alert(errorMessage);
+      }
     }
   }
 
@@ -268,26 +376,26 @@ const Clients: React.FC = () => {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelRowData[];
 
         console.log('Raw JSON data from Excel:', jsonData);
 
         setImportProgress(75); // Processing data
 
         // Convertir los datos al formato esperado por el backend
-        const formattedData = jsonData.map((row: any) => ({
+        const formattedData = jsonData.map((row: ExcelRowData) => ({
           nombre: row['Nombre']?.split(' ')[0] || '',
           apellido: row['Nombre']?.split(' ').slice(1).join(' ') || '',
           telefono: `${row['Cod. País'] || ''} ${row['Teléfono'] || ''}`.trim(),
           correo_electronico: row['Correo Electrónico'] || '',
           // Ignorar Empresa: no se incluye en el mapeo
-          visitas: parseInt(row['Visitas']) || 0,
-          ultima_visita: parseDate(row['Última Visita']),
-          tags: row['Tags'] ? row['Tags'].split(', ').filter((t: string) => t) : [],
-          gasto_total: parseFloat(row['Gasto Total']) || 0,
-          gasto_por_visita: parseFloat(row['Gasto/Visita']) || 0,
+          visitas: parseInt(String(row['Visitas'] || '0')) || 0,
+          ultima_visita: parseDate(String(row['Última Visita'] || '')),
+          tags: row['Tags'] ? String(row['Tags']).split(', ').filter((t: string) => t) : [],
+          gasto_total: parseFloat(String(row['Gasto Total'] || '0')) || 0,
+          gasto_por_visita: parseFloat(String(row['Gasto/Visita'] || '0')) || 0,
           notas: row['Nota del Perfil'] || '',
-          fecha_creacion: parseDate(row['Fecha de Creación'])
+          fecha_creacion: parseDate(String(row['Fecha de Creación'] || ''))
         }));
 
         console.log('Formatted data to send:', formattedData);
@@ -305,9 +413,10 @@ const Clients: React.FC = () => {
         } else {
           alert('Error al importar: ' + response.data.message);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error importing:', error);
-        alert('Error al importar el archivo: ' + error.message);
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        alert('Error al importar el archivo: ' + errorMessage);
       } finally {
         setIsImporting(false);
         setImportProgress(0);
@@ -319,48 +428,53 @@ const Clients: React.FC = () => {
   return (
     <div className="p-6 bg-[#F7F3ED] min-h-screen">
       {/* Controles */}
-      <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
-        <div className="flex gap-2">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, correo, teléfono o tag..."
-            className="px-4 py-2 border rounded-md focus:ring focus:ring-yellow-300 transition"
-          />
-          <button
-            onClick={applyFilter}
-            className="px-4 py-2 bg-yellow-700 text-white rounded-md hover:bg-yellow-800 transition"
-          >
-            Filtrar
-          </button>
+      <div className="flex flex-col gap-4 mb-6">
+        {/* Primera fila - Búsqueda y botones principales */}
+        <div className="flex flex-col md:flex-row justify-between gap-4">
+          <div className="flex gap-2">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre, correo, teléfono..."
+              className="px-4 py-2 border rounded-md focus:ring focus:ring-yellow-300 transition"
+            />
+            <button
+              onClick={applyFilter}
+              className="px-4 py-2 bg-yellow-700 text-white rounded-md hover:bg-yellow-800 transition"
+            >
+              Buscar
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="file"
+              accept=".xlsx"
+              onChange={handleFileImport}
+              className="hidden"
+              id="excel-upload"
+            />
+            <label
+              htmlFor="excel-upload"
+              className={`px-4 py-2 border rounded-md hover:bg-gray-100 transition cursor-pointer ${isImporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isImporting ? 'Importando...' : 'Importar Excel'}
+            </label>
+            <button
+              onClick={exportExcel}
+              className="px-4 py-2 border rounded-md hover:bg-gray-100 transition"
+            >
+              Exportar Excel
+            </button>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="px-4 py-2 bg-yellow-700 text-white rounded-md hover:bg-yellow-800 transition"
+            >
+              + Crear Cliente
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <input
-            type="file"
-            accept=".xlsx"
-            onChange={handleFileImport}
-            className="hidden"
-            id="excel-upload"
-          />
-          <label
-            htmlFor="excel-upload"
-            className={`px-4 py-2 border rounded-md hover:bg-gray-100 transition cursor-pointer ${isImporting ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isImporting ? 'Importando...' : 'Importar Excel'}
-          </label>
-          <button
-            onClick={exportExcel}
-            className="px-4 py-2 border rounded-md hover:bg-gray-100 transition"
-          >
-            Exportar Excel
-          </button>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 bg-yellow-700 text-white rounded-md hover:bg-yellow-800 transition"
-          >
-            + Crear Cliente
-          </button>
-        </div>
+
+        
       </div>
 
       {/* Progress Bar */}
@@ -470,7 +584,7 @@ const Clients: React.FC = () => {
       {totalPages > 1 && (
         <div className="flex justify-center items-center mt-6 gap-4">
           <button
-            onClick={() => setCurrentPage(currentPage - 1)}
+            onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
             className="px-4 py-2 border rounded-md hover:bg-gray-100 transition disabled:opacity-50"
           >
@@ -480,7 +594,7 @@ const Clients: React.FC = () => {
             Página {currentPage} de {totalPages}
           </span>
           <button
-            onClick={() => setCurrentPage(currentPage + 1)}
+            onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
             className="px-4 py-2 border rounded-md hover:bg-gray-100 transition disabled:opacity-50"
           >
