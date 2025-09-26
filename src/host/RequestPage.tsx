@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import NewRequestModal from '../components/NewRequestModal';
 import emailjs from '@emailjs/browser';
@@ -59,15 +58,11 @@ const api = axios.create({
 const estadosPosibles = ["pendiente", "confirmada", "cancelada"];
 
 const RequestPage: React.FC = () => {
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, ] = useState('Reserva más cercana');
   const [showFilters, setShowFilters] = useState(false);
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   // Removido activeTab ya que solo mostraremos reservas
-
-  // Estados para solicitudes (mantenido para el modal)
-  const [requests, setRequests] = useState<RequestData[]>([]);
 
   // Estados para reservas
   const [reservas, setReservas] = useState<Reserva[]>([]);
@@ -96,15 +91,14 @@ const RequestPage: React.FC = () => {
 
   const handleNewRequestCreated = (requestData: RequestData) => {
     console.log('Nueva solicitud creada:', requestData);
-    setRequests(prevRequests => [...prevRequests, requestData]);
-  // Cerrar modal
-  setIsNewRequestModalOpen(false);
-  // Refrescar reservas (manteniendo filtros actuales si los hay)
-  fetchReservas({ applyFilters: true });
+    // Cerrar modal
+    setIsNewRequestModalOpen(false);
+    // Refrescar reservas (manteniendo filtros actuales si los hay)
+    fetchReservas({ applyFilters: true });
   };
 
   // Funciones para manejar reservas
-  const fetchReservas = async (options?: { applyFilters?: boolean; resetPage?: boolean }) => {
+  const fetchReservas = React.useCallback(async (options?: { applyFilters?: boolean; resetPage?: boolean }) => {
     const resetting = options?.resetPage;
     if (resetting && page !== 1) setPage(1);
     const currentPage = resetting ? 1 : page;
@@ -169,7 +163,7 @@ const RequestPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, filtroFechaInicio, filtroFechaFin, filtroEstado, searchTerm]);
 
   useEffect(() => {
     // inicializar EmailJS una sola vez en el frontend
@@ -182,7 +176,7 @@ const RequestPage: React.FC = () => {
 
   useEffect(() => {
     fetchReservas();
-  }, [page, limit]);
+  }, [fetchReservas]);
 
   const actualizarEstado = async (id: number) => {
     const nuevoEstado = estadoSeleccionado[id];
@@ -209,18 +203,8 @@ const RequestPage: React.FC = () => {
     return <span className={`${baseStyle} bg-gray-500`}>{estado}</span>;
   };
 
-  useEffect(() => {
-    // inicializar EmailJS (usa sólo la public key en el frontend)
-    try {
-      emailjs.init('BgQlos8cUH1tIBIo5');
-    } catch (err) {
-      console.warn('EmailJS init warning', err);
-    }
-    fetchReservas();
-  }, [page, limit]);
-
   const aplicarFiltros = () => {
-  fetchReservas({ applyFilters: true, resetPage: true });
+    fetchReservas({ applyFilters: true, resetPage: true });
     setShowFilters(false);
   };
 
@@ -229,25 +213,7 @@ const RequestPage: React.FC = () => {
     setFiltroFechaFin('');
     setFiltroEstado('');
     setSearchTerm('');
-  fetchReservas({ applyFilters: true, resetPage: true });
-  };
-
-  const timeSlots = [
-    '12:30 pm', '1:00 pm', '1:30 pm', '2:00 pm', '2:30 pm',
-    '3:00 pm', '3:30 pm', '4:00 pm', '4:30 pm'
-  ];
-
-  // Mapeo de IDs a horas
-  const idToTimeSlot = {
-    1: '12:30 pm',
-    2: '1:00 pm',
-    3: '1:30 pm',
-    4: '2:00 pm',
-    5: '2:30 pm',
-    6: '3:00 pm',
-    7: '3:30 pm',
-    8: '4:00 pm',
-    9: '4:30 pm'
+    fetchReservas({ applyFilters: true, resetPage: true });
   };
 
 const getHorarioRange = (horarioId: number | null): string => {
