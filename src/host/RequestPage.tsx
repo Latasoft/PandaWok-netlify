@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import NewRequestModal from '../components/NewRequestModal';
-import emailjs from '@emailjs/browser';
 
 // Define una interfaz para los datos de la solicitud, similar a lo que enviará el modal
 interface RequestData {
@@ -164,15 +163,6 @@ const RequestPage: React.FC = () => {
       setLoading(false);
     }
   }, [page, limit, filtroFechaInicio, filtroFechaFin, filtroEstado, searchTerm]);
-
-  useEffect(() => {
-    // inicializar EmailJS una sola vez en el frontend
-    try {
-      emailjs.init('BgQlos8cUH1tIBIo5');
-    } catch (err) {
-      console.warn('EmailJS init warning', err);
-    }
-  }, []); // <-- vacío: solo al montar
 
   useEffect(() => {
     fetchReservas();

@@ -2,12 +2,43 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ClientTagsModal from './ClientTagsModal';
 import ReservationTagsModal from './ReservationTagsModal';
+import emailjs from '../utils/emailConfig'; // Usar la configuración centralizada
+
+interface RequestData {
+  nombre: string;
+  apellido: string;
+  correo_electronico: string;
+  telefono: string;
+  mesa_id: null;
+  horario_id: number | null; // Cambiar de null a number | null
+  fecha_reserva: string;
+  cantidad_personas: number;
+  notas: string | null;
+  clientTags: string[];
+  reservationTags: string[];
+  membershipNumber: string;
+  hora: string;
+  rawResponse: unknown;
+}
 
 interface NewRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateRequest: (requestData: any) => void;
+  onCreateRequest: (requestData: RequestData) => void;
 }
+
+// Horarios predefinidos con sus IDs
+const horariosDisponibles = [
+  { id: 1, hora: '12:30 PM' },
+  { id: 2, hora: '1:00 PM' },
+  { id: 3, hora: '1:30 PM' },
+  { id: 4, hora: '2:00 PM' },
+  { id: 5, hora: '2:30 PM' },
+  { id: 6, hora: '3:00 PM' },
+  { id: 7, hora: '3:30 PM' },
+  { id: 8, hora: '4:00 PM' },
+  { id: 9, hora: '4:30 PM' },
+];
 
 const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCreateRequest }) => {
   const [telefono, setTelefono] = useState('');
@@ -20,6 +51,7 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
 
   const [fecha, setFecha] = useState<string>('');
   const [hora, setHora] = useState<string>('');
+  const [horarioId, setHorarioId] = useState<number | null>(null); // Nuevo estado
   const [personas, setPersonas] = useState<number | ''>('');
   const [tipoReserva, setTipoReserva] = useState<string>('Reserva estándar');
   const [buscarComensal, setBuscarComensal] = useState('');
@@ -43,11 +75,14 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
       setSelectedFile(null);
       setFecha('');
       setHora('');
+      setHorarioId(null); // Reset horario_id
       setPersonas('');
       setTipoReserva('Reserva estándar');
       setBuscarComensal('');
       setNombre('');
       setApellido('');
+      setError(null);
+      setSuccessMessage(null);
     } else {
       const now = new Date();
       const year = now.getFullYear();
@@ -66,6 +101,21 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
       setSelectedFile(event.target.files[0]);
     } else {
       setSelectedFile(null);
+    }
+  };
+
+  const sendEmail = async (templateParams: Record<string, unknown>) => {
+    try {
+      const result = await emailjs.send(
+        'YOUR_SERVICE_ID',     // Reemplaza con tu Service ID
+        'YOUR_TEMPLATE_ID',    // Reemplaza con tu Template ID
+        templateParams
+      );
+      console.log('Email enviado exitosamente:', result.text);
+      return true;
+    } catch (error) {
+      console.error('Error al enviar email:', error);
+      return false;
     }
   };
 
@@ -104,9 +154,8 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
         apellido: apellido.trim(),
         correo_electronico: email.trim(),
         telefono: telefono.trim(),
-        // Campos no definidos aún en este modal
         mesa_id: null, // se asignará posteriormente en timeline
-        horario_id: null, // no se selecciona horario aquí
+        horario_id: horarioId, // Enviar el horario_id seleccionado
         fecha_reserva: fecha, // backend espera formato YYYY-MM-DD
         cantidad_personas: personas,
         notas: reservationNote.trim() ? reservationNote.trim() : null,
@@ -125,11 +174,38 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
         rawResponse: response.data,
       });
       setSuccessMessage('Reserva creada correctamente (estado: pendiente)');
+
+      // Obtener la descripción del horario para el email
+      const horarioSeleccionado = horariosDisponibles.find(h => h.id === horarioId);
+      const horarioDescripcion = horarioSeleccionado ? horarioSeleccionado.hora : hora;
+
+      // Enviar email de notificación
+      const emailSent = await sendEmail({
+        to_name: `${nombre} ${apellido}`,
+        to_email: email.trim(),
+        fecha,
+        horario: horarioDescripcion,
+        personas,
+        tipo_reserva: tipoReserva,
+        mensaje: `Hola ${nombre}, tu reserva ha sido creada exitosamente para el ${fecha} a las ${horarioDescripcion}.`,
+      });
+
+      if (!emailSent) {
+        setError('Reserva creada, pero hubo un problema al enviar el email de confirmación');
+      }
+
       // Reset parcial (mantener abierto para crear otra rápido) o cerrar si se desea
       // onClose(); // Descomentar si quieres cerrar automáticamente
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creando reserva:', err);
-      const msg = err?.response?.data?.error || err?.message || 'Error al crear la reserva';
+      let msg = 'Error al crear la reserva';
+      
+      if (axios.isAxiosError(err)) {
+        msg = err.response?.data?.error || err.message || msg;
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
+      
       setError(msg);
     } finally {
       setLoading(false);
@@ -160,7 +236,6 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
 
         {/* Formulario - El contenido que se desplaza */}
         <form id="new-request-form" onSubmit={handleSubmit} className="p-6 flex-1 space-y-4 overflow-y-auto"
-              // Estilo para el scrollbar en el área desplazable
               style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: '#B24E00 #212133',
@@ -175,7 +250,8 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
               {successMessage}
             </div>
           )}
-          {/* Fila 1: Fecha y Hora */}
+
+          {/* Fila 1: Fecha y Horario */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="fecha" className="block text-gray-400 text-sm mb-1">Fecha</label>
@@ -193,15 +269,21 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
               </div>
             </div>
             <div>
-              <label htmlFor="hora" className="block text-gray-400 text-sm mb-1">Hora</label>
+              <label htmlFor="horario" className="block text-gray-400 text-sm mb-1">Horario</label>
               <div className="relative">
-                <input
-                  type="time"
-                  id="hora"
-                  value={hora}
-                  onChange={(e) => setHora(e.target.value)}
+                <select
+                  id="horario"
+                  value={horarioId || ''}
+                  onChange={(e) => setHorarioId(e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full p-2 rounded bg-[#33334F] text-white border border-transparent focus:border-orange-500 focus:ring-orange-500 appearance-none"
-                />
+                >
+                  <option value="">Seleccionar horario</option>
+                  {horariosDisponibles.map(horario => (
+                    <option key={horario.id} value={horario.id}>
+                      {horario.hora}
+                    </option>
+                  ))}
+                </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
@@ -292,7 +374,6 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
             <label htmlFor="telefono" className="block text-gray-400 text-sm mb-1">Teléfono</label>
             <div className="flex rounded bg-[#33334F] border border-transparent focus-within:border-orange-500 focus-within:ring-orange-500">
               <span className="flex items-center p-2 text-white border-r border-[#212133]">
-                {/* Bandera de Chile y código */}
                 <img src="https://flagcdn.com/w20/cl.png" alt="Chile Flag" className="w-5 h-auto mr-1" />
                 +56
               </span>
@@ -412,8 +493,6 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
               <input type="file" className="hidden" onChange={handleFileChange} />
             </label>
           </div>
-
-          {/* Este div ya no es necesario aquí si lo mueves al pie del modal */}
         </form>
 
         {/* Botones de acción del formulario (abajo), siempre visibles */}
