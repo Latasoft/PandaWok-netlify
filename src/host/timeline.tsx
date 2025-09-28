@@ -253,10 +253,62 @@ const fetchTodasReservasPorFecha = async () => {
             validateStatus: (status) => status === 200 || status === 404,
           }),
         ]);
-        setReservasMesa(resReservas.status === 200 ? resReservas.data.reservas || [] : []);
-        setBloqueosMesa(resBloqueos.status === 200 ? resBloqueos.data.bloqueos || [] : []);
+        
+        const reservasData = resReservas.status === 200 ? resReservas.data.reservas || [] : [];
+        const bloqueosData = resBloqueos.status === 200 ? resBloqueos.data.bloqueos || [] : [];
+        
+        setReservasMesa(reservasData);
+        setBloqueosMesa(bloqueosData);
         setReservaSeleccionada(null);
         setBloqueoSeleccionado(null);
+
+        // Console log detallado con los datos de la mesa seleccionada
+        console.log('📊 [DATOS MESA DÍA] Información completa:', {
+          mesa: {
+            id: mesaSeleccionada.id,
+            numero_mesa: mesaSeleccionada.numero_mesa,
+            tipo_mesa: mesaSeleccionada.tipo_mesa,
+            tamanio: mesaSeleccionada.tamanio,
+            capacidad: mesaSeleccionada.capacidad,
+            salon_id: mesaSeleccionada.salon_id,
+            posicion: { x: mesaSeleccionada.posX, y: mesaSeleccionada.posY }
+          },
+          fecha: fechaSeleccionada,
+          reservas: {
+            total: reservasData.length,
+            lista: reservasData.map((r: any) => ({
+              id: r.id,
+              hora_reserva: r.hora_reserva,
+              num_personas: r.num_personas,
+              status: r.status,
+              cliente: r.nombre_cliente
+            }))
+          },
+          bloqueos: {
+            total: bloqueosData.length,
+            lista: bloqueosData.map((b: any) => ({
+              id: b.id,
+              hora_inicio: b.hora_inicio,
+              hora_fin: b.hora_fin
+            }))
+          },
+          estado_mesa: bloqueosData.length > 0 ? 'BLOQUEADA' : reservasData.length > 0 ? 'CON RESERVAS' : 'DISPONIBLE',
+          timestamp: new Date().toISOString()
+        });
+        
+        // Log adicional para horarios ocupados
+        if (reservasData.length > 0) {
+          console.log('⏰ [HORARIOS OCUPADOS]:', reservasData.map((r: any) => 
+            `${r.hora_reserva} - ${r.nombre_cliente} (${r.num_personas} personas)`
+          ).join(', '));
+        }
+        
+        if (bloqueosData.length > 0) {
+          console.log('🚫 [HORARIOS BLOQUEADOS]:', bloqueosData.map((b: any) => 
+            `${b.hora_inicio} - ${b.hora_fin}`
+          ).join(', '));
+        }
+        
       } catch (error) {
         console.error('Error cargando reservas o bloqueos:', error);
         setReservasMesa([]);
@@ -814,6 +866,18 @@ const reloadReservas = async () => {
                   whileHover={{ scale: isMobile ? 1.02 : 1.05 }}
                   onDragEnd={(event, info) => handleDragEnd(mesa.id, info)}
                   onClick={() => {
+                    console.log('🎯 [MESA SELECCIONADA] Mesa clickeada:', {
+                      id: mesa.id,
+                      numero_mesa: mesa.numero_mesa,
+                      tipo_mesa: mesa.tipo_mesa,
+                      tamanio: mesa.tamanio,
+                      capacidad: mesa.capacidad,
+                      salon_id: mesa.salon_id,
+                      posicion: { x: mesa.posX, y: mesa.posY },
+                      fecha_actual: fechaSeleccionada,
+                      timestamp: new Date().toISOString()
+                    });
+                    
                     setMesaSeleccionada(mesa);
                     setReservaSeleccionada(null);
                     setBloqueoSeleccionado(null);
