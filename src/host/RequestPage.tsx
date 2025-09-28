@@ -199,21 +199,6 @@ const RequestPage: React.FC = () => {
       // Obtener la descripción del horario para el email
       const horarioDescripcion = getHorarioRange(reservaActual.horario_id);
       
-      // Preparar parámetros básicos para el email
-      const emailParams = {
-        to_name: `${reservaActual.cliente.nombre} ${reservaActual.cliente.apellido}`,
-        to_email: reservaActual.cliente.correo_electronico,
-        from_name: 'PandaWok Restaurante',
-        cliente_nombre: reservaActual.cliente.nombre,
-        cliente_apellido: reservaActual.cliente.apellido,
-        fecha_reserva: new Date(reservaActual.fecha_reserva).toLocaleDateString(),
-        horario: horarioDescripcion,
-        cantidad_personas: reservaActual.cantidad_personas,
-        telefono: reservaActual.cliente.telefono || 'No especificado',
-        notas: reservaActual.notas || 'Sin notas adicionales',
-        reserva_id: id,
-      };
-
       // Enviar email según el cambio de estado
       try {
         if (nuevoEstado === 'confirmada' && estadoAnterior !== 'confirmada') {
@@ -222,9 +207,13 @@ const RequestPage: React.FC = () => {
             'service_1jci0t7',
             'template_pdi4dqa', // Template de confirmación
             {
-              ...emailParams,
-              mensaje: `Hola ${reservaActual.cliente.nombre}, tu reserva #${id} ha sido confirmada para el ${emailParams.fecha_reserva} a las ${horarioDescripcion} para ${reservaActual.cantidad_personas} personas.`,
-              tipo_reserva: 'Reserva confirmada'
+              to_name: `${reservaActual.cliente.nombre} ${reservaActual.cliente.apellido}`,
+              to_email: reservaActual.cliente.correo_electronico,
+              reservation_date: new Date(reservaActual.fecha_reserva).toLocaleDateString(),
+              reservation_time: horarioDescripcion,
+              party_size: reservaActual.cantidad_personas,
+              phone: reservaActual.cliente.telefono || 'No especificado',
+              comments: reservaActual.notas || 'Sin comentarios adicionales',
             },
             'BgQlos8cUH1tIBIo5'
           );
@@ -235,10 +224,13 @@ const RequestPage: React.FC = () => {
             'service_1jci0t7',
             'template_hhabtvi', // Template de cancelación
             {
-              ...emailParams,
-              mensaje: `Hola ${reservaActual.cliente.nombre}, lamentamos informarte que tu reserva #${id} para el ${emailParams.fecha_reserva} ha sido cancelada.`,
-              motivo_cancelacion: 'Cancelación por parte del restaurante',
-              tipo_reserva: 'Reserva cancelada'
+              to_name: `${reservaActual.cliente.nombre} ${reservaActual.cliente.apellido}`,
+              to_email: reservaActual.cliente.correo_electronico,
+              reservation_date: new Date(reservaActual.fecha_reserva).toLocaleDateString(),
+              reservation_time: horarioDescripcion,
+              party_size: reservaActual.cantidad_personas,
+              phone: reservaActual.cliente.telefono || 'No especificado',
+              comments: reservaActual.notas || 'Reserva cancelada por el restaurante',
             },
             'BgQlos8cUH1tIBIo5'
           );
@@ -249,9 +241,13 @@ const RequestPage: React.FC = () => {
             'service_1jci0t7',
             'template_pdi4dqa', // Template básico
             {
-              ...emailParams,
-              mensaje: `Hola ${reservaActual.cliente.nombre}, tu reserva #${id} para el ${emailParams.fecha_reserva} está ahora en estado pendiente de confirmación.`,
-              tipo_reserva: 'Reserva pendiente'
+              to_name: `${reservaActual.cliente.nombre} ${reservaActual.cliente.apellido}`,
+              to_email: reservaActual.cliente.correo_electronico,
+              reservation_date: new Date(reservaActual.fecha_reserva).toLocaleDateString(),
+              reservation_time: horarioDescripcion,
+              party_size: reservaActual.cantidad_personas,
+              phone: reservaActual.cliente.telefono || 'No especificado',
+              comments: reservaActual.notas || 'Reserva en estado pendiente de confirmación',
             },
             'BgQlos8cUH1tIBIo5'
           );
