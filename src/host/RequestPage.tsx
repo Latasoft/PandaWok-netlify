@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import NewRequestModal from '../components/NewRequestModal';
+import emailjs from '@emailjs/browser';
 
 // Define una interfaz para los datos de la solicitud, similar a lo que enviará el modal
 interface RequestData {
+  nombre: string;
+  apellido: string;
+  correo_electronico: string;
   telefono: string;
-  email: string;
+  mesa_id: null;
+  horario_id: number | null;
+  fecha_reserva: string;
+  cantidad_personas: number;
+  notas: string | null;
   clientTags: string[];
   reservationTags: string[];
   membershipNumber: string;
-  reservationNote: string;
-  file: string | null;
-  fecha: string;
   hora: string;
-  personas: number | '';
-  tipoReserva: string;
-  buscarComensal: string;
-  nombre: string;
-  apellido: string;
+  rawResponse: unknown;
 }
 
 // Interfaces para las reservas del backend
@@ -165,6 +166,15 @@ const RequestPage: React.FC = () => {
   }, [page, limit, filtroFechaInicio, filtroFechaFin, filtroEstado, searchTerm]);
 
   useEffect(() => {
+    // inicializar EmailJS una sola vez en el frontend
+    try {
+      emailjs.init('BgQlos8cUH1tIBIo5');
+    } catch (err) {
+      console.warn('EmailJS init warning', err);
+    }
+  }, []); // <-- vacío: solo al montar
+
+  useEffect(() => {
     fetchReservas();
   }, [fetchReservas]);
 
@@ -172,10 +182,86 @@ const RequestPage: React.FC = () => {
     const nuevoEstado = estadoSeleccionado[id];
     if (!nuevoEstado) return;
 
+    // Encontrar la reserva actual para obtener datos del cliente
+    const reservaActual = reservas.find(r => r.id === id);
+    if (!reservaActual || !reservaActual.cliente) {
+      alert("No se encontró información del cliente para enviar notificación");
+      return;
+    }
+
+    const estadoAnterior = reservaActual.estado.toLowerCase();
+
     setLoadingEstadoId(id);
     try {
-      // Actualiza estado en backend (solo eso)
+      // Actualiza estado en backend
       await api.post(`reservas/${id}/estado`, { estado: nuevoEstado });
+      
+      // Obtener la descripción del horario para el email
+      const horarioDescripcion = getHorarioRange(reservaActual.horario_id);
+      
+      // Preparar parámetros básicos para el email
+      const emailParams = {
+        to_name: `${reservaActual.cliente.nombre} ${reservaActual.cliente.apellido}`,
+        to_email: reservaActual.cliente.correo_electronico,
+        from_name: 'PandaWok Restaurante',
+        cliente_nombre: reservaActual.cliente.nombre,
+        cliente_apellido: reservaActual.cliente.apellido,
+        fecha_reserva: new Date(reservaActual.fecha_reserva).toLocaleDateString(),
+        horario: horarioDescripcion,
+        cantidad_personas: reservaActual.cantidad_personas,
+        telefono: reservaActual.cliente.telefono || 'No especificado',
+        notas: reservaActual.notas || 'Sin notas adicionales',
+        reserva_id: id,
+      };
+
+      // Enviar email según el cambio de estado
+      try {
+        if (nuevoEstado === 'confirmada' && estadoAnterior !== 'confirmada') {
+          // Email de confirmación
+          await emailjs.send(
+            'service_1jci0t7',
+            'template_pdi4dqa', // Template de confirmación
+            {
+              ...emailParams,
+              mensaje: `Hola ${reservaActual.cliente.nombre}, tu reserva #${id} ha sido confirmada para el ${emailParams.fecha_reserva} a las ${horarioDescripcion} para ${reservaActual.cantidad_personas} personas.`,
+              tipo_reserva: 'Reserva confirmada'
+            },
+            'BgQlos8cUH1tIBIo5'
+          );
+          console.log('Email de confirmación enviado exitosamente');
+        } else if (nuevoEstado === 'cancelada' && estadoAnterior !== 'cancelada') {
+          // Email de cancelación
+          await emailjs.send(
+            'service_1jci0t7',
+            'template_hhabtvi', // Template de cancelación
+            {
+              ...emailParams,
+              mensaje: `Hola ${reservaActual.cliente.nombre}, lamentamos informarte que tu reserva #${id} para el ${emailParams.fecha_reserva} ha sido cancelada.`,
+              motivo_cancelacion: 'Cancelación por parte del restaurante',
+              tipo_reserva: 'Reserva cancelada'
+            },
+            'BgQlos8cUH1tIBIo5'
+          );
+          console.log('Email de cancelación enviado exitosamente');
+        } else if (nuevoEstado === 'pendiente' && estadoAnterior !== 'pendiente') {
+          // Email informativo de cambio a pendiente
+          await emailjs.send(
+            'service_1jci0t7',
+            'template_pdi4dqa', // Template básico
+            {
+              ...emailParams,
+              mensaje: `Hola ${reservaActual.cliente.nombre}, tu reserva #${id} para el ${emailParams.fecha_reserva} está ahora en estado pendiente de confirmación.`,
+              tipo_reserva: 'Reserva pendiente'
+            },
+            'BgQlos8cUH1tIBIo5'
+          );
+          console.log('Email de estado pendiente enviado exitosamente');
+        }
+      } catch (emailError) {
+        console.warn('Estado actualizado correctamente, pero hubo un problema al enviar el email:', emailError);
+        // No mostrar error al usuario ya que el estado sí se actualizó
+      }
+      
       await fetchReservas();
     } catch {
       alert("Error al actualizar estado");
