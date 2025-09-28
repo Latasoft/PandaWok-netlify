@@ -7,8 +7,17 @@ import {
 import ClientTagsModal from './ClientTagsModal';
 import { motion } from 'framer-motion';
 
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// Función para generar descripción de horario
+const generateHorarioDescripcion = (horarioId: number | null | undefined): string => {
+  if (!horarioId) return 'Sin horario';
+  const startHour = 12 + Math.ceil((horarioId - 1) / 2);
+  const startMinute = horarioId % 2 === 1 ? 30 : 0;
+  const endHour = startMinute === 30 ? startHour + 1 : startHour;
+  const endMinute = startMinute === 30 ? 0 : 30;
+  return `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+};
 
 interface Cliente {
   id: number;
@@ -26,6 +35,7 @@ interface Reserva {
   cantidad_personas: number;
   notas?: string;
   horario_descripcion?: string;
+  horario_id?: number; // Agregar este campo
   cliente?: Cliente;
   mesa_numero?: string;
   duracion?: number;
@@ -38,7 +48,7 @@ interface Reserva {
 interface Props {
   reservaId: number;
   onClose: () => void;
-  onReservaFinalizada: () => void;  // Nueva prop para refrescar
+  onReservaFinalizada: () => void;
 }
 
 const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReservaFinalizada }) => {
@@ -64,12 +74,33 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
   const [historial, setHistorial] = useState<Reserva[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
 
+  // Función para obtener la descripción del horario (backend o frontend)
+  const getHorarioDescripcion = (reservaData: Reserva): string => {
+    // Si viene del backend, usarlo
+    if (reservaData.horario_descripcion) {
+      return reservaData.horario_descripcion;
+    }
+    // Si no, generarlo en frontend
+    return generateHorarioDescripcion(reservaData.horario_id);
+  };
+
   useEffect(() => {
     const fetchReservaYHistorial = async () => {
       setLoading(true);
       try {
         const res = await axios.get(`${API_BASE_URL}/api/reservas/${reservaId}`);
         const data = res.data.reserva || res.data;
+        
+        // 🔍 Log para debuggear los datos de la reserva
+        console.log('🔍 [RESERVA DEBUG] Datos completos recibidos:', {
+          reserva_completa: data,
+          horario_id: data.horario_id,
+          horario_descripcion: data.horario_descripcion,
+          horario_generado: generateHorarioDescripcion(data.horario_id),
+          fecha_reserva: data.fecha_reserva,
+          timestamp: new Date().toISOString()
+        });
+        
         setReserva(data);
         setSelectedTags(data.tags || []);
 
@@ -220,6 +251,8 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
             <h2 className="text-2xl font-bold text-yellow-800">{reserva.cliente?.nombre} {reserva.cliente?.apellido}</h2>
             <p className="text-xs text-gray-600">Origen: {reserva.origen || 'Web'}</p>
             <p className="text-xs text-gray-500">Creada el {reserva.fecha_creacion || new Date().toLocaleDateString()}</p>
+            {/* Agregar la hora de la reserva aquí */}
+            <p className="text-xs text-gray-600">Hora: {getHorarioDescripcion(reserva)}</p>
 
             {/* Tabs */}
             <div className="flex gap-6 mt-3 text-sm text-yellow-900 border-b pb-2">
@@ -263,7 +296,7 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
             </div>
             <div className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-blue-600" />
-              <span className="text-blue-800 font-medium">Hora: {new Date(reserva.fecha_reserva).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="text-blue-800 font-medium">Hora: {getHorarioDescripcion(reserva)}</span>
             </div>
             <div className="flex items-center gap-3">
               <Users className="w-5 h-5 text-pink-600" />

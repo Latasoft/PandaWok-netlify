@@ -86,7 +86,7 @@ const sortReservasByHorario = (reservas: Reserva[], order: 'asc' | 'desc' = 'asc
     // Extract hours from horario_descripcion (format: "HH:MM - HH:MM")
     const timeA = a.horario_descripcion?.split(' - ')[0] || '99:99';
     const timeB = b.horario_descripcion?.split(' - ')[0] || '99:99';
-    return order === 'asc' ? timeA.localeCompare(timeB) : timeB.localeCompare(timeA);
+    return order === 'asc' ? timeA.localeCompare(timeA) : timeB.localeCompare(timeB);
   });
 };
 
@@ -197,6 +197,21 @@ const fetchTodasReservasPorFecha = async () => {
     const response = await axios.get(`${API_BASE_URL}/api/reservas/byDate`, {
       params: { fecha: fechaSeleccionada }
     });
+    
+    // 🔍 Log para debuggear las reservas del día
+    console.log('🔍 [TODAS RESERVAS DEBUG] Datos recibidos:', {
+      total_reservas: response.data.reservas?.length || 0,
+      fecha: fechaSeleccionada,
+      primeras_3_reservas: response.data.reservas?.slice(0, 3).map((r: any) => ({
+        id: r.id,
+        cliente: `${r.cliente_nombre} ${r.cliente_apellido}`,
+        horario_id: r.horario_id,
+        horario_descripcion: r.horario_descripcion,
+        fecha_reserva: r.fecha_reserva
+      })),
+      timestamp: new Date().toISOString()
+    });
+    
     // Sort reservas before setting state
     const sortedReservas = sortReservasByHorario(response.data.reservas || [], sortOrder);
     setTodasReservas(sortedReservas);
@@ -257,57 +272,27 @@ const fetchTodasReservasPorFecha = async () => {
         const reservasData = resReservas.status === 200 ? resReservas.data.reservas || [] : [];
         const bloqueosData = resBloqueos.status === 200 ? resBloqueos.data.bloqueos || [] : [];
         
+        // 🔍 Log detallado de reservas de la mesa
+        console.log('🔍 [RESERVAS MESA DEBUG] Datos recibidos:', {
+          mesa_id: mesaSeleccionada.id,
+          mesa_numero: mesaSeleccionada.numero_mesa,
+          fecha: fechaSeleccionada,
+          total_reservas: reservasData.length,
+          reservas_detalle: reservasData.map((r: any) => ({
+            id: r.id,
+            cliente: `${r.cliente_nombre} ${r.cliente_apellido}`,
+            horario_id: r.horario_id,
+            horario_descripcion: r.horario_descripcion,
+            fecha_reserva: r.fecha_reserva,
+            cantidad_personas: r.cantidad_personas
+          })),
+          timestamp: new Date().toISOString()
+        });
+        
         setReservasMesa(reservasData);
         setBloqueosMesa(bloqueosData);
         setReservaSeleccionada(null);
         setBloqueoSeleccionado(null);
-
-        // Console log detallado con los datos de la mesa seleccionada
-        console.log('📊 [DATOS MESA DÍA] Información completa:', {
-          mesa: {
-            id: mesaSeleccionada.id,
-            numero_mesa: mesaSeleccionada.numero_mesa,
-            tipo_mesa: mesaSeleccionada.tipo_mesa,
-            tamanio: mesaSeleccionada.tamanio,
-            capacidad: mesaSeleccionada.capacidad,
-            salon_id: mesaSeleccionada.salon_id,
-            posicion: { x: mesaSeleccionada.posX, y: mesaSeleccionada.posY }
-          },
-          fecha: fechaSeleccionada,
-          reservas: {
-            total: reservasData.length,
-            lista: reservasData.map((r: any) => ({
-              id: r.id,
-              hora_reserva: r.hora_reserva,
-              num_personas: r.num_personas,
-              status: r.status,
-              cliente: r.nombre_cliente
-            }))
-          },
-          bloqueos: {
-            total: bloqueosData.length,
-            lista: bloqueosData.map((b: any) => ({
-              id: b.id,
-              hora_inicio: b.hora_inicio,
-              hora_fin: b.hora_fin
-            }))
-          },
-          estado_mesa: bloqueosData.length > 0 ? 'BLOQUEADA' : reservasData.length > 0 ? 'CON RESERVAS' : 'DISPONIBLE',
-          timestamp: new Date().toISOString()
-        });
-        
-        // Log adicional para horarios ocupados
-        if (reservasData.length > 0) {
-          console.log('⏰ [HORARIOS OCUPADOS]:', reservasData.map((r: any) => 
-            `${r.hora_reserva} - ${r.nombre_cliente} (${r.num_personas} personas)`
-          ).join(', '));
-        }
-        
-        if (bloqueosData.length > 0) {
-          console.log('🚫 [HORARIOS BLOQUEADOS]:', bloqueosData.map((b: any) => 
-            `${b.hora_inicio} - ${b.hora_fin}`
-          ).join(', '));
-        }
         
       } catch (error) {
         console.error('Error cargando reservas o bloqueos:', error);
