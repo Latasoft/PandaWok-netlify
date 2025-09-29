@@ -2,14 +2,12 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { Move, Menu, X } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Move, X } from 'lucide-react';
 import ReservationDetailsPanel from '../components/ReservationDetailsPanel';
 import NewReservationModal from '../components/NewReservationModal';
 import BlockTableModal from '../components/BlockTableModal';
 import AgregarMesaModal from '../components/NuevaMesaModal';
 import WalkInModal from '../components/WalkInModal';
-import Header from '../components/Header';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -18,13 +16,6 @@ interface Salon {
   nombre: string;
   capacidad: number;
   es_condicion_especial: boolean;
-}
-
-// Interface for Header compatibility
-interface HeaderSalon {
-  id: string;
-  name: string;
-  tables: any[];
 }
 
 interface Mesa {
@@ -63,13 +54,6 @@ interface BloqueoMesa {
   hora_fin: string;
 }
 
-interface Horario {
-    id: number;
-    descripcion: string;
-    hora_inicio: string;
-    hora_fin: string;
-    is_active: boolean;
-}
 
 const generateTimeOptions = (): string[] => {
   const times: string[] = [];
@@ -91,10 +75,8 @@ const sortReservasByHorario = (reservas: Reserva[], order: 'asc' | 'desc' = 'asc
 };
 
 const Timeline: React.FC = () => {
-  const navigate = useNavigate();
   const [salones, setSalones] = useState<Salon[]>([]);
   const [selectedSalonId, setSelectedSalonId] = useState<number | null>(null);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [mesaSeleccionada, setMesaSeleccionada] = useState<Mesa | null>(null);
@@ -112,7 +94,7 @@ const Timeline: React.FC = () => {
   const [todasReservas, setTodasReservas] = useState<Reserva[]>([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(new Date().toISOString().split('T')[0]);
   const pendingScrollIdRef = useRef<string | null>(null);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortOrder] = useState<'asc' | 'desc'>('asc');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -417,18 +399,7 @@ const Timeline: React.FC = () => {
     }
   };
 
-  // Desbloquear mesa
-  const handleUnlockTable = async (bloqueoId: number) => {
-    try {
-      await axios.put(`${API_BASE_URL}/api/mesas/bloqueos/${bloqueoId}/desbloquear`);
-      alert('Bloqueo eliminado correctamente');
-      setBloqueosMesa((prev) => prev.filter((b) => b.id !== bloqueoId));
-      setBloqueoSeleccionado(null);
-    } catch (error) {
-      console.error('Error desbloqueando mesa:', error);
-      alert('Error desbloqueando mesa. Intenta de nuevo.');
-    }
-  };
+
 
   // Agregar nueva mesa
   const handleAgregarMesa = async (mesaData: { salon_id: number; tipo_mesa: string; tamanio: string }) => {
@@ -467,7 +438,7 @@ const reloadReservas = async () => {
       setReservasMesa(responseMesaReservas.data.reservas || []);
     }
     
-    // Forzar actualización del Header recargando las mesas
+    // Recargar las mesas para mantener sincronización
     if (selectedSalonId) {
       const res = await axios.get(`${API_BASE_URL}/api/mesas/salon/${selectedSalonId}/mesas`);
       const mesasConPos = res.data.map((mesa: Mesa) => ({
@@ -498,17 +469,8 @@ const reloadReservas = async () => {
   // Define default mesa (first table in first salon)
   const defaultMesa = mesas.find(m => m.salon_id === salones[0]?.id) || null;
 
-  // Convert salones to Header format
-  const headerSalones: HeaderSalon[] = salones.map(salon => ({
-    id: salon.id.toString(),
-    name: salon.nombre,
-    tables: mesas.filter(mesa => mesa.salon_id === salon.id)
-  }));
-
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
-      {/* Header Component */}
-      <Header salones={headerSalones} />
 
 
       {/* Desktop Sidebar */}
@@ -903,6 +865,10 @@ const reloadReservas = async () => {
                 return sizes[tamanio as keyof typeof sizes] * baseSize;
               };
 
+           
+
+            
+
               return (
                 <motion.div
                   key={mesa.id}
@@ -929,9 +895,7 @@ const reloadReservas = async () => {
                     setReservaSeleccionada(null);
                     setBloqueoSeleccionado(null);
                     setActiveTab('mesa');
-                    if (isMobile) {
-                      setShowMobileMenu(true);
-                    }
+              
                   }}
                   className={`absolute flex flex-col items-center justify-center text-gray-900 font-semibold shadow-md cursor-pointer transition-colors ${
                     mesa.tipo_mesa === 'redonda'
@@ -980,169 +944,108 @@ const reloadReservas = async () => {
 
       {/* Mobile Alert/Modal */}
       {isMobile && mesaSeleccionada && (
-        <>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-4 z-50 bg-[#FFF8E1] rounded-xl shadow-2xl overflow-hidden flex flex-col"
+          style={{ maxHeight: 'calc(100vh - 32px)' }}
+        >
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
             onClick={() => {
               setMesaSeleccionada(null);
-              setShowMobileMenu(false);
             }}
           />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-4 z-50 bg-[#FFF8E1] rounded-xl shadow-2xl overflow-hidden flex flex-col"
-            style={{ maxHeight: 'calc(100vh - 32px)' }}
-          >
-            {/* Modal Header */}
-            <div className="px-4 py-3 bg-white border-b border-orange-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#3C2022]">
-                Mesa {mesaSeleccionada.numero_mesa}
-              </h2>
+          {/* Modal Header */}
+          <div className="px-4 py-3 bg-white border-b border-orange-100 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-[#3C2022]">
+              Mesa {mesaSeleccionada.numero_mesa}
+            </h2>
+            <button
+              onClick={() => {
+                setMesaSeleccionada(null);
+              }}
+              className="p-2 hover:bg-gray-100 rounded-full flex items-center justify-center"
+            >
+              <X className="w-6 h-6 text-gray-600" />
+            </button>
+          </div>
+          {/* Modal Content */}
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            {/* Tabs */}
+            <div className="flex mb-4 bg-white rounded-lg overflow-hidden border border-orange-200">
               <button
                 onClick={() => {
-                  setMesaSeleccionada(null);
-                  setShowMobileMenu(false);
+                  setActiveTab('todas');
+                  fetchTodasReservasPorFecha();
                 }}
-                className="p-2 hover:bg-gray-100 rounded-full flex items-center justify-center"
+                className={`flex-1 py-2 px-4 font-semibold text-sm transition ${
+                  activeTab === 'todas'
+                    ? 'bg-orange-500 text-white'
+                    : 'hover:bg-orange-50 text-gray-700'
+                }`}
               >
-                <X className="w-6 h-6 text-gray-600" />
+                Todas
+              </button>
+              <button
+                onClick={() => setActiveTab('mesa')}
+                className={`flex-1 py-2 px-4 font-semibold text-sm transition ${
+                  activeTab === 'mesa'
+                    ? 'bg-orange-500 text-white'
+                    : 'hover:bg-orange-50 text-gray-700'
+                }`}
+              >
+                Mesa Actual
               </button>
             </div>
+            
+            <label htmlFor="fechaSeleccionada" className="block mb-2 font-semibold text-[#3C2022]">
+              Seleccionar Fecha
+            </label>
+            <input
+              type="date"
+              id="fechaSeleccionada"
+              value={fechaSeleccionada}
+              onChange={(e) => {
+                setFechaSeleccionada(e.target.value);
+                if (activeTab === 'todas') {
+                  fetchTodasReservasPorFecha();
+                }
+              }}
+              className="mb-4 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
+            />
 
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto px-4 py-3">
-              {/* Tabs */}
-              <div className="flex mb-4 bg-white rounded-lg overflow-hidden border border-orange-200">
-                <button
-                  onClick={() => {
-                    setActiveTab('todas');
-                    fetchTodasReservasPorFecha();
-                  }}
-                  className={`flex-1 py-2 px-4 font-semibold text-sm transition ${
-                    activeTab === 'todas'
-                      ? 'bg-orange-500 text-white'
-                      : 'hover:bg-orange-50 text-gray-700'
-                  }`}
-                >
-                  Todas
-                </button>
-                <button
-                  onClick={() => setActiveTab('mesa')}
-                  className={`flex-1 py-2 px-4 font-semibold text-sm transition ${
-                    activeTab === 'mesa'
-                      ? 'bg-orange-500 text-white'
-                      : 'hover:bg-orange-50 text-gray-700'
-                  }`}
-                >
-                  Mesa Actual
-                </button>
-              </div>
-              
-              <label htmlFor="fechaSeleccionada" className="block mb-2 font-semibold text-[#3C2022]">
-                Seleccionar Fecha
-              </label>
-              <input
-                type="date"
-                id="fechaSeleccionada"
-                value={fechaSeleccionada}
-                onChange={(e) => {
-                  setFechaSeleccionada(e.target.value);
-                  if (activeTab === 'todas') {
-                    fetchTodasReservasPorFecha();
-                  }
-                }}
-                className="mb-4 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
-              />
-
-              {activeTab === 'mesa' && mesaSeleccionada ? (
-                <>
-                  {/* Mesa Content */}
-                  {bloqueosMesa.length > 0 && (
-                    <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-300">
-                      <h3 className="font-semibold text-red-600 mb-2">Bloqueos</h3>
-                      <div className="space-y-2">
-                        {bloqueosMesa.map((bloqueo) => (
-                          <div
-                            key={bloqueo.id}
-                            className="p-2 bg-white rounded border border-red-200 text-sm"
-                          >
-                            <p>🕒 {bloqueo.hora_inicio} - {bloqueo.hora_fin}</p>
-                            <p className="text-xs text-red-600">📅 {bloqueo.fecha}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Reservas */}
-                  <div className="space-y-3">
-                    {reservasMesa.length === 0 ? (
-                      <p className="text-gray-500 text-center">No hay reservas para esta fecha</p>
-                    ) : (
-                      sortReservasByHorario(reservasMesa).map((reserva) => (
+            {activeTab === 'mesa' && mesaSeleccionada ? (
+              <>
+                {/* Mesa Content */}
+                {bloqueosMesa.length > 0 && (
+                  <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-300">
+                    <h3 className="font-semibold text-red-600 mb-2">Bloqueos</h3>
+                    <div className="space-y-2">
+                      {bloqueosMesa.map((bloqueo) => (
                         <div
-                          key={reserva.id}
-                          id={`reserva-${reserva.id}`}
-                          onClick={() => setReservaSeleccionada(reserva)}
-                          className="p-3 bg-white rounded-lg border shadow-sm"
+                          key={bloqueo.id}
+                          className="p-2 bg-white rounded border border-red-200 text-sm"
                         >
-                          <div className="flex justify-between items-center">
-                            <span className="font-semibold">
-                              👤 {reserva.cliente_nombre} {reserva.cliente_apellido}
-                            </span>
-                            {reserva.status === 'sentado' && (
-                              <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                                Sentado
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            👥 {reserva.cantidad_personas} personas
-                          </p>
-                          {reserva.horario_descripcion && (
-                            <p className="text-sm text-gray-600">
-                              🕐 {reserva.horario_descripcion}
-                            </p>
-                          )}
+                          <p>🕒 {bloqueo.hora_inicio} - {bloqueo.hora_fin}</p>
+                          <p className="text-xs text-red-600">📅 {bloqueo.fecha}</p>
                         </div>
-                      ))
-                    )}
+                      ))}
+                    </div>
                   </div>
+                )}
 
-                  {/* Action Buttons */}
-                  <div className="mt-4 space-y-2">
-                    <button
-                      onClick={() => setShowNewReservationModal(true)}
-                      className="w-full py-2 bg-orange-500 text-white rounded-lg font-medium"
-                    >
-                      Nueva Reserva
-                    </button>
-                    <button
-                      onClick={() => setShowBlockTableModal(true)}
-                      className="w-full py-2 bg-red-500 text-white rounded-lg font-medium"
-                    >
-                      Bloquear Mesa
-                    </button>
-                    <button
-                      onClick={() => setShowWalkInModal(true)}
-                      className="w-full py-2 bg-blue-500 text-white rounded-lg font-medium"
-                    >
-                      Sentar Walk-in
-                    </button>
-                  </div>
-                </>
-              ) : (
-                // Todas las reservas content
+                {/* Reservas */}
                 <div className="space-y-3">
-                  {todasReservas.length === 0 ? (
+                  {reservasMesa.length === 0 ? (
                     <p className="text-gray-500 text-center">No hay reservas para esta fecha</p>
                   ) : (
-                    todasReservas.map((reserva) => (
+                    sortReservasByHorario(reservasMesa).map((reserva) => (
                       <div
                         key={reserva.id}
+                        id={`reserva-${reserva.id}`}
                         onClick={() => setReservaSeleccionada(reserva)}
                         className="p-3 bg-white rounded-lg border shadow-sm"
                       >
@@ -1159,51 +1062,107 @@ const reloadReservas = async () => {
                         <p className="text-sm text-gray-600">
                           👥 {reserva.cantidad_personas} personas
                         </p>
-                        <p className="text-sm text-gray-600">
-                          🪑 {reserva.salon_nombre} - Mesa {reserva.numero_mesa || 'N/A'}
-                        </p>
                         {reserva.horario_descripcion && (
                           <p className="text-sm text-gray-600">
                             🕐 {reserva.horario_descripcion}
                           </p>
                         )}
-                        {reserva.status === 'confirmada' && (!reserva.mesa_id || reserva.mesa_id === null) && (mesaSeleccionada || defaultMesa) && (
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              const mesaToAssign = mesaSeleccionada || defaultMesa;
-                              if (!mesaToAssign) return;
-                              try {
-                                await axios.put(`${API_BASE_URL}/api/reservas/${reserva.id}`, {
-                                  mesa_id: mesaToAssign.id,
-                                  cliente_id: reserva.cliente_id,
-                                  horario_id: reserva.horario_id,
-                                  fecha_reserva: reserva.fecha_reserva.split('T')[0],
-                                  cantidad_personas: reserva.cantidad_personas,
-                                  notas: reserva.notas || null
-                                });
-                                await fetchTodasReservasPorFecha();
-                                if (activeTab === 'mesa') {
-                                  await fetchReservasMesa();
-                                }
-                              } catch (err) {
-                                console.error('Error asignando mesa', err);
-                                alert('No se pudo asignar la mesa');
-                              }
-                            }}
-                            className="mt-2 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs font-semibold"
-                          >
-                            Asignar a Mesa {(mesaSeleccionada || defaultMesa)?.numero_mesa}
-                          </button>
-                        )}
                       </div>
                     ))
                   )}
                 </div>
-              )}
-            </div>
-          </motion.div>
-        </>
+
+                {/* Action Buttons */}
+                <div className="mt-4 space-y-2">
+                  <button
+                    onClick={() => setShowNewReservationModal(true)}
+                    className="w-full py-2 bg-orange-500 text-white rounded-lg font-medium"
+                  >
+                    Nueva Reserva
+                  </button>
+                  <button
+                    onClick={() => setShowBlockTableModal(true)}
+                    className="w-full py-2 bg-red-500 text-white rounded-lg font-medium"
+                  >
+                    Bloquear Mesa
+                  </button>
+                  <button
+                    onClick={() => setShowWalkInModal(true)}
+                    className="w-full py-2 bg-blue-500 text-white rounded-lg font-medium"
+                  >
+                    Sentar Walk-in
+                  </button>
+                </div>
+              </>
+            ) : (
+              // Todas las reservas content
+              <div className="space-y-3">
+                {todasReservas.length === 0 ? (
+                  <p className="text-gray-500 text-center">No hay reservas para esta fecha</p>
+                ) : (
+                  todasReservas.map((reserva) => (
+                    <div
+                      key={reserva.id}
+                      onClick={() => setReservaSeleccionada(reserva)}
+                      className="p-3 bg-white rounded-lg border shadow-sm"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold">
+                          👤 {reserva.cliente_nombre} {reserva.cliente_apellido}
+                        </span>
+                        {reserva.status === 'sentado' && (
+                          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                            Sentado
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        👥 {reserva.cantidad_personas} personas
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        🪑 {reserva.salon_nombre} - Mesa {reserva.numero_mesa || 'N/A'}
+                      </p>
+                      {reserva.horario_descripcion && (
+                        <p className="text-sm text-gray-600">
+                          🕐 {reserva.horario_descripcion}
+                        </p>
+                      )}
+                      {reserva.status === 'confirmada' && (!reserva.mesa_id || reserva.mesa_id === null) && (mesaSeleccionada || defaultMesa) && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const mesaToAssign = mesaSeleccionada || defaultMesa;
+                            if (!mesaToAssign) return;
+                            try {
+                              await axios.put(`${API_BASE_URL}/api/reservas/${reserva.id}`, {
+                                mesa_id: mesaToAssign.id,
+                                cliente_id: reserva.cliente_id,
+                                horario_id: reserva.horario_id,
+                                fecha_reserva: reserva.fecha_reserva.split('T')[0],
+                                cantidad_personas: reserva.cantidad_personas,
+                                notas: reserva.notas || null
+                              });
+                              await fetchTodasReservasPorFecha();
+                              if (activeTab === 'mesa') {
+                                await fetchReservasMesa();
+                              }
+                            } catch (err) {
+                              console.error('Error asignando mesa', err);
+                              alert('No se pudo asignar la mesa');
+                            }
+                          }}
+                          className="mt-2 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs font-semibold"
+                        >
+                          Asignar a Mesa {(mesaSeleccionada || defaultMesa)?.numero_mesa}
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </motion.div>
       )}
 
       {/* Modales */}
