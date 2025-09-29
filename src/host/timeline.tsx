@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
@@ -95,7 +95,6 @@ const Timeline: React.FC = () => {
   const [salones, setSalones] = useState<Salon[]>([]);
   const [selectedSalonId, setSelectedSalonId] = useState<number | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [userName, setUserName] = useState('');
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [mesaSeleccionada, setMesaSeleccionada] = useState<Mesa | null>(null);
@@ -175,7 +174,65 @@ const Timeline: React.FC = () => {
     fetchSalones();
   }, []);
 
-  const fetchReservasMesa = async () => {
+  // Mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Leer query params (t, fecha) al montar
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('t');
+    const fecha = params.get('fecha');
+    if (fecha) {
+      setFechaSeleccionada(fecha);
+    }
+    if (tab === 'todas') {
+      setActiveTab('todas');
+      fetchTodasReservasPorFecha();
+    }
+    // Si hay hash #reserva-<id> guardarlo para scroll posterior
+    if (location.hash.startsWith('#reserva-')) {
+      pendingScrollIdRef.current = location.hash.substring(1); // remove '#'
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Hacer scroll a la reserva si está en la lista de "todas"
+  useEffect(() => {
+    if (activeTab === 'todas' && pendingScrollIdRef.current) {
+      const el = document.getElementById(pendingScrollIdRef.current);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2','ring-orange-500','transition');
+        setTimeout(() => {
+          el.classList.remove('ring-2','ring-orange-500');
+        }, 3000);
+        pendingScrollIdRef.current = null;
+      }
+    }
+  }, [activeTab, todasReservas]);
+
+  // Carga salones
+  useEffect(() => {
+    const fetchSalones = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/salones`);
+        const salonesData = res.data.salones || res.data;
+        setSalones(salonesData);
+        if (salonesData.length > 0) setSelectedSalonId(salonesData[0].id);
+      } catch (error) {
+        console.error('Error cargando salones:', error);
+      }
+    };
+    fetchSalones();
+  }, []);
+
+  const fetchReservasMesa = useCallback(async () => {
     if (!mesaSeleccionada) return;
 
     try {
@@ -189,37 +246,52 @@ const Timeline: React.FC = () => {
       console.error('Error cargando reservas:', error);
       setReservasMesa([]);
     }
-  };
+  }, [mesaSeleccionada, fechaSeleccionada]);
 
   // Carga todas las reservas
-const fetchTodasReservasPorFecha = async () => {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/api/reservas/byDate`, {
-      params: { fecha: fechaSeleccionada }
-    });
-    
-    // 🔍 Log para debuggear las reservas del día
-    console.log('🔍 [TODAS RESERVAS DEBUG] Datos recibidos:', {
-      total_reservas: response.data.reservas?.length || 0,
-      fecha: fechaSeleccionada,
-      primeras_3_reservas: response.data.reservas?.slice(0, 3).map((r: any) => ({
-        id: r.id,
-        cliente: `${r.cliente_nombre} ${r.cliente_apellido}`,
-        horario_id: r.horario_id,
-        horario_descripcion: r.horario_descripcion,
-        fecha_reserva: r.fecha_reserva
-      })),
-      timestamp: new Date().toISOString()
-    });
-    
-    // Sort reservas before setting state
-    const sortedReservas = sortReservasByHorario(response.data.reservas || [], sortOrder);
-    setTodasReservas(sortedReservas);
-  } catch (error) {
-    console.error('Error fetching todas las reservas:', error);
-    setTodasReservas([]);
-  }
-};
+  const fetchTodasReservasPorFecha = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/reservas/byDate`, {
+        params: { fecha: fechaSeleccionada }
+      });
+      
+      // 🔍 Log para debuggear las reservas del día
+      console.log('🔍 [TODAS RESERVAS DEBUG] Datos recibidos:', {
+        total_reservas: response.data.reservas?.length || 0,
+        fecha: fechaSeleccionada,
+        primeras_3_reservas: response.data.reservas?.slice(0, 3).map((r: Reserva) => ({
+          id: r.id,
+          cliente: `${r.cliente_nombre} ${r.cliente_apellido}`,
+          horario_id: r.horario_id,
+          horario_descripcion: r.horario_descripcion,
+          fecha_reserva: r.fecha_reserva
+        })),
+        timestamp: new Date().toISOString()
+      });
+      
+      // Sort reservas before setting state
+      const sortedReservas = sortReservasByHorario(response.data.reservas || [], sortOrder);
+      setTodasReservas(sortedReservas);
+    } catch (error) {
+      console.error('Error fetching todas las reservas:', error);
+      setTodasReservas([]);
+    }
+  }, [fechaSeleccionada, sortOrder]);
+
+  // Refrescar reservas cuando cambia la fecha
+  useEffect(() => {
+    const refreshData = async () => {
+      if (activeTab === 'todas') {
+        await fetchTodasReservasPorFecha();
+      }
+      // También recargar reservas de mesa si hay una seleccionada
+      if (mesaSeleccionada && activeTab === 'mesa') {
+        await fetchReservasMesa();
+      }
+    };
+    refreshData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fechaSeleccionada, activeTab]);
   // Carga mesas cuando cambia el salón seleccionado
   useEffect(() => {
     if (!selectedSalonId) return;
@@ -278,7 +350,7 @@ const fetchTodasReservasPorFecha = async () => {
           mesa_numero: mesaSeleccionada.numero_mesa,
           fecha: fechaSeleccionada,
           total_reservas: reservasData.length,
-          reservas_detalle: reservasData.map((r: any) => ({
+          reservas_detalle: reservasData.map((r: Reserva) => ({
             id: r.id,
             cliente: `${r.cliente_nombre} ${r.cliente_apellido}`,
             horario_id: r.horario_id,
@@ -304,7 +376,7 @@ const fetchTodasReservasPorFecha = async () => {
   }, [mesaSeleccionada, fechaSeleccionada]);
 
   // Mover mesa y guardar posición
-  const handleDragEnd = async (mesaId: number, info: any) => {
+  const handleDragEnd = async (mesaId: number, info: { offset: { x: number; y: number } }) => {
     const { offset } = info;
     setMesas((prevMesas) =>
       prevMesas.map((mesa) => {
@@ -394,59 +466,49 @@ const reloadReservas = async () => {
       });
       setReservasMesa(responseMesaReservas.data.reservas || []);
     }
+    
+    // Forzar actualización del Header recargando las mesas
+    if (selectedSalonId) {
+      const res = await axios.get(`${API_BASE_URL}/api/mesas/salon/${selectedSalonId}/mesas`);
+      const mesasConPos = res.data.map((mesa: Mesa) => ({
+        ...mesa,
+        posX: typeof mesa.posX === 'number' && !isNaN(mesa.posX) ? mesa.posX : 50 + mesa.id * 5,
+        posY: typeof mesa.posY === 'number' && !isNaN(mesa.posY) ? mesa.posY : 50 + mesa.id * 5,
+      }));
+      setMesas(mesasConPos);
+    }
   } catch (error) {
     console.error('Error recargando reservas:', error);
   }
 };
 
-  // Modificar handleDeleteReserva para usar la función de recarga
-  const handleDeleteReserva = async (id: number) => {
-    try {
-      await axios.delete(`${API_BASE_URL}/api/reservas/${id}`);
-      await reloadReservas(); // Recargar después de eliminar
-      setReservaSeleccionada(null); // Cerrar el panel de detalles
-    } catch (error) {
-      console.error('Error eliminando reserva:', error);
-      alert('No se pudo eliminar la reserva');
-    }
-  };
+  // Efecto para actualizar el estado cuando hay cambios
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (activeTab === 'todas') {
+        fetchTodasReservasPorFecha();
+      } else if (mesaSeleccionada) {
+        fetchReservasMesa();
+      }
+    }, 30000); // Actualizar cada 30 segundos
 
-  // Agregar la recarga al ReservationDetailsPanel
-  {reservaSeleccionada && reservaSeleccionada.id && (
-    <ReservationDetailsPanel
-      reservaId={reservaSeleccionada.id}
-      onClose={async () => {
-        await reloadReservas();
-        setReservaSeleccionada(null);
-      }}
-      onReservaFinalizada={async () => {
-        await reloadReservas();
-        setReservaSeleccionada(null);
-      }}
-    />
-  )}
-
-  // Modificar el manejo de estado en el componente
-  const handleStatusChange = async (reservaId: number, nuevoEstado: string) => {
-    try {
-      await axios.post(`${API_BASE_URL}/api/reservas/${reservaId}/estado`, {
-        estado: nuevoEstado
-      });
-      await reloadReservas();
-      // Forzar actualización del sidebar
-      setReservaSeleccionada(null);
-    } catch (error) {
-      console.error('Error actualizando estado:', error);
-      alert('Error actualizando estado de la reserva');
-    }
-  }
+    return () => clearInterval(interval);
+  }, [activeTab, mesaSeleccionada, fetchTodasReservasPorFecha, fetchReservasMesa]);
 
   // Define default mesa (first table in first salon)
   const defaultMesa = mesas.find(m => m.salon_id === salones[0]?.id) || null;
 
+  // Convert salones to Header format
+  const headerSalones: HeaderSalon[] = salones.map(salon => ({
+    id: salon.id.toString(),
+    name: salon.nombre,
+    tables: mesas.filter(mesa => mesa.salon_id === salon.id)
+  }));
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
-      {/* Use standard Header for both mobile and desktop */}
+      {/* Header Component */}
+      <Header salones={headerSalones} />
 
 
       {/* Desktop Sidebar */}
