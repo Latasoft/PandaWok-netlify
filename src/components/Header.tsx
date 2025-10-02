@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
 import logo from '../assets/wokpanda-white.png';
 import lockIcon from '../assets/icons-header/lock.png';
@@ -39,6 +39,8 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
   const [userName, setUserName] = useState(''); // Reintroducing userName state from the first snippet
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const viewModes = ['Todo el día', 'Horario'];
 
@@ -56,6 +58,24 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
     }
   }, []);
 
+  // Sincronizar fecha del header con URL cuando estamos en timeline
+  useEffect(() => {
+    if (location.pathname === '/timeline') {
+      const fechaParam = searchParams.get('fecha');
+      if (fechaParam) {
+        const fechaFromURL = new Date(fechaParam + 'T00:00:00');
+        if (!isNaN(fechaFromURL.getTime())) {
+          setCurrentDate(fechaFromURL);
+          console.log('📅 [HEADER LAYOUT - SYNC FROM URL] Sincronizando fecha desde URL:', {
+            fechaURL: fechaParam,
+            fechaSincronizada: fechaFromURL.toISOString().split('T')[0],
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+    }
+  }, [location.pathname, searchParams]);
+
   // Reintroducing logout function from the first snippet
   const logout = () => {
     localStorage.removeItem('token');
@@ -63,20 +83,48 @@ const Header: React.FC<HeaderProps> = ({ salones = [] }) => {
     navigate('/login');
   };
 
+  // Función auxiliar para actualizar la URL si estamos en timeline
+  const updateTimelineDateURL = (newDate: Date) => {
+    if (location.pathname === '/timeline') {
+      const params = new URLSearchParams(searchParams);
+      params.set('fecha', newDate.toISOString().split('T')[0]);
+      setSearchParams(params);
+    }
+  };
+
   const goToToday = () => {
-    setCurrentDate(new Date());
+    const newDate = new Date();
+    console.log('📅 [HEADER LAYOUT - GO TO TODAY] Navegando a hoy:', {
+      fechaAnterior: currentDate.toISOString().split('T')[0],
+      fechaNueva: newDate.toISOString().split('T')[0],
+      timestamp: new Date().toISOString()
+    });
+    setCurrentDate(newDate);
+    updateTimelineDateURL(newDate);
   };
 
   const goToPreviousDay = () => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() - 1);
+    console.log('📅 [HEADER LAYOUT - PREVIOUS DAY] Navegando al día anterior:', {
+      fechaAnterior: currentDate.toISOString().split('T')[0],
+      fechaNueva: newDate.toISOString().split('T')[0],
+      timestamp: new Date().toISOString()
+    });
     setCurrentDate(newDate);
+    updateTimelineDateURL(newDate);
   };
 
   const goToNextDay = () => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() + 1);
+    console.log('📅 [HEADER LAYOUT - NEXT DAY] Navegando al día siguiente:', {
+      fechaAnterior: currentDate.toISOString().split('T')[0],
+      fechaNueva: newDate.toISOString().split('T')[0],
+      timestamp: new Date().toISOString()
+    });
     setCurrentDate(newDate);
+    updateTimelineDateURL(newDate);
   };
 
   const formatDate = (date: Date) => {

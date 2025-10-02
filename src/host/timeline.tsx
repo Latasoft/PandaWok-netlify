@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Move, X } from 'lucide-react';
@@ -90,6 +90,7 @@ const Timeline: React.FC = () => {
   const [showWalkInModal, setShowWalkInModal] = useState(false);
   type TabType = 'mesa' | 'todas';
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>('mesa');
   const [todasReservas, setTodasReservas] = useState<Reserva[]>([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -156,6 +157,20 @@ const Timeline: React.FC = () => {
     fetchSalones();
   }, []);
 
+  // Escuchar cambios en el parámetro 'fecha' de la URL para sincronizar con el header del layout
+  useEffect(() => {
+    const fechaParam = searchParams.get('fecha');
+    if (fechaParam && fechaParam !== fechaSeleccionada) {
+      console.log('📅 [TIMELINE - URL PARAM CHANGE] Detectando cambio de fecha desde URL:', {
+        fechaAnterior: fechaSeleccionada,
+        fechaNueva: fechaParam,
+        timestamp: new Date().toISOString()
+      });
+      setFechaSeleccionada(fechaParam);
+      // No necesitamos llamar updateURLWithDate aquí porque ya viene de la URL
+    }
+  }, [searchParams, fechaSeleccionada]);
+
   // Mobile detection
   useEffect(() => {
     const handleResize = () => {
@@ -214,6 +229,18 @@ const Timeline: React.FC = () => {
     fetchSalones();
   }, []);
 
+  // Función auxiliar para actualizar la URL con la nueva fecha
+  const updateURLWithDate = (newDate: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('fecha', newDate);
+    setSearchParams(params);
+    console.log('📅 [TIMELINE - URL UPDATE] Actualizando URL con nueva fecha:', {
+      fechaNueva: newDate,
+      paramsActualizados: params.toString(),
+      timestamp: new Date().toISOString()
+    });
+  };
+
   const fetchReservasMesa = useCallback(async () => {
     if (!mesaSeleccionada) return;
 
@@ -260,20 +287,46 @@ const Timeline: React.FC = () => {
     }
   }, [fechaSeleccionada, sortOrder]);
 
-  // Refrescar reservas cuando cambia la fecha
+  // Refrescar datos cuando cambia el tab activo
   useEffect(() => {
-    const refreshData = async () => {
+    const refreshActiveTab = async () => {
       if (activeTab === 'todas') {
         await fetchTodasReservasPorFecha();
+      } else if (activeTab === 'mesa' && mesaSeleccionada) {
+        await fetchReservasMesa();
       }
+    };
+    refreshActiveTab();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Refrescar datos cuando cambia el tab activo
+  useEffect(() => {
+    const refreshActiveTab = async () => {
+      if (activeTab === 'todas') {
+        await fetchTodasReservasPorFecha();
+      } else if (activeTab === 'mesa' && mesaSeleccionada) {
+        await fetchReservasMesa();
+      }
+    };
+    refreshActiveTab();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Refrescar reservas cuando cambia la fecha - mantener ambos tabs actualizados
+  useEffect(() => {
+    const refreshData = async () => {
+      // Siempre refrescar todas las reservas para mantener datos actualizados en ambos tabs
+      await fetchTodasReservasPorFecha();
+      
       // También recargar reservas de mesa si hay una seleccionada
-      if (mesaSeleccionada && activeTab === 'mesa') {
+      if (mesaSeleccionada) {
         await fetchReservasMesa();
       }
     };
     refreshData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fechaSeleccionada, activeTab]);
+  }, [fechaSeleccionada]);
   // Carga mesas cuando cambia el salón seleccionado
   useEffect(() => {
     if (!selectedSalonId) return;
@@ -470,7 +523,46 @@ const reloadReservas = async () => {
   const defaultMesa = mesas.find(m => m.salon_id === salones[0]?.id) || null;
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+      {/* Selector de fecha principal en la parte superior */}
+      <div className="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-gray-800">Gestión de Reservas</h1>
+          <div className="flex items-center gap-4">
+            <label htmlFor="fechaPrincipal" className="font-medium text-gray-700">
+              Fecha:
+            </label>
+            <input
+              type="date"
+              id="fechaPrincipal"
+              value={fechaSeleccionada}
+              onChange={(e) => {
+                console.log('📅 [TIMELINE HEADER DATE CHANGE] Fecha cambiada desde el header del timeline:', {
+                  fechaAnterior: fechaSeleccionada,
+                  fechaNueva: e.target.value,
+                  mesaSeleccionada: mesaSeleccionada ? {
+                    id: mesaSeleccionada.id,
+                    numero: mesaSeleccionada.numero_mesa
+                  } : null,
+                  activeTab: activeTab,
+                  timestamp: new Date().toISOString()
+                });
+                setFechaSeleccionada(e.target.value);
+                // Actualizar la URL con la nueva fecha
+                updateURLWithDate(e.target.value);
+                // Refrescar ambos tabs cuando cambia la fecha desde el header
+                fetchTodasReservasPorFecha();
+                if (mesaSeleccionada) {
+                  fetchReservasMesa();
+                }
+              }}
+              className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
+            />
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex flex-1 md:flex-row overflow-hidden">
 
 
       {/* Desktop Sidebar */}
@@ -516,9 +608,24 @@ const reloadReservas = async () => {
               id="fechaSeleccionada"
               value={fechaSeleccionada}
               onChange={(e) => {
+                console.log('📅 [SIDEBAR DATE CHANGE] Fecha cambiada desde el sidebar:', {
+                  fechaAnterior: fechaSeleccionada,
+                  fechaNueva: e.target.value,
+                  mesaSeleccionada: mesaSeleccionada ? {
+                    id: mesaSeleccionada.id,
+                    numero: mesaSeleccionada.numero_mesa
+                  } : null,
+                  activeTab: activeTab,
+                  timestamp: new Date().toISOString()
+                });
                 setFechaSeleccionada(e.target.value);
+                // Actualizar la URL con la nueva fecha
+                updateURLWithDate(e.target.value);
+                // Refrescar ambos tabs cuando cambia la fecha
                 if (activeTab === 'todas') {
                   fetchTodasReservasPorFecha();
+                } else if (activeTab === 'mesa' && mesaSeleccionada) {
+                  fetchReservasMesa();
                 }
               }}
               className="mb-4 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
@@ -1009,9 +1116,24 @@ const reloadReservas = async () => {
               id="fechaSeleccionada"
               value={fechaSeleccionada}
               onChange={(e) => {
+                console.log('📅 [MOBILE DATE CHANGE] Fecha cambiada desde mobile:', {
+                  fechaAnterior: fechaSeleccionada,
+                  fechaNueva: e.target.value,
+                  mesaSeleccionada: mesaSeleccionada ? {
+                    id: mesaSeleccionada.id,
+                    numero: mesaSeleccionada.numero_mesa
+                  } : null,
+                  activeTab: activeTab,
+                  timestamp: new Date().toISOString()
+                });
                 setFechaSeleccionada(e.target.value);
+                // Actualizar la URL con la nueva fecha
+                updateURLWithDate(e.target.value);
+                // Refrescar ambos tabs cuando cambia la fecha
                 if (activeTab === 'todas') {
                   fetchTodasReservasPorFecha();
+                } else if (activeTab === 'mesa' && mesaSeleccionada) {
+                  fetchReservasMesa();
                 }
               }}
               className="mb-4 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
@@ -1244,6 +1366,7 @@ const reloadReservas = async () => {
           }}
         />
       )}
+      </div>
     </div>
   );
 };
