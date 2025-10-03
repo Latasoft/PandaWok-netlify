@@ -65,7 +65,10 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({
 
   // Consultar horarios
   useEffect(() => {
-    if (!selectedDate || !tableId) {
+    console.log('🕒 Hook de horarios ejecutado:', { selectedDate, tableId });
+    
+    if (!selectedDate) {
+      console.log('❌ No hay fecha seleccionada, limpiando horarios');
       setAvailableTimes([]);
       setSelectedTime(null);
       return;
@@ -75,13 +78,28 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({
       try {
         setLoadingTimes(true);
         const fechaStr = selectedDate.toISOString().split('T')[0];
-        const response = await axios.get(`${API_BASE_URL}/api/horarios/horarios-disponibles`, {
-          params: { mesa_id: tableId, fecha: fechaStr },
-        });
+        console.log('📅 Fecha formateada:', fechaStr);
+        
+        let response;
+        if (tableId) {
+          console.log('🏷️ Cargando horarios para mesa específica:', tableId);
+          // Si hay mesa específica, usar el endpoint que filtra por mesa
+          response = await axios.get(`${API_BASE_URL}/api/horarios/horarios-disponibles`, {
+            params: { mesa_id: tableId, fecha: fechaStr },
+          });
+        } else {
+          console.log('🌍 Cargando todos los horarios disponibles (sin mesa específica)');
+          // Si no hay mesa específica, obtener todos los horarios disponibles
+          response = await axios.get(`${API_BASE_URL}/api/horarios/todos-los-horarios`, {
+            params: { fecha: fechaStr },
+          });
+        }
+        
+        console.log('✅ Horarios obtenidos:', response.data.horarios);
         setAvailableTimes(response.data.horarios);
         setSelectedTime(null);
       } catch (error) {
-        console.error(error);
+        console.error('❌ Error cargando horarios:', error);
         setAvailableTimes([]);
       } finally {
         setLoadingTimes(false);
