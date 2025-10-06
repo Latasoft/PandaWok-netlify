@@ -524,43 +524,7 @@ const reloadReservas = async () => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-      {/* Selector de fecha principal en la parte superior */}
-      <div className="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-800">Gestión de Reservas</h1>
-          <div className="flex items-center gap-4">
-            <label htmlFor="fechaPrincipal" className="font-medium text-gray-700">
-              Fecha:
-            </label>
-            <input
-              type="date"
-              id="fechaPrincipal"
-              value={fechaSeleccionada}
-              onChange={(e) => {
-                console.log('📅 [TIMELINE HEADER DATE CHANGE] Fecha cambiada desde el header del timeline:', {
-                  fechaAnterior: fechaSeleccionada,
-                  fechaNueva: e.target.value,
-                  mesaSeleccionada: mesaSeleccionada ? {
-                    id: mesaSeleccionada.id,
-                    numero: mesaSeleccionada.numero_mesa
-                  } : null,
-                  activeTab: activeTab,
-                  timestamp: new Date().toISOString()
-                });
-                setFechaSeleccionada(e.target.value);
-                // Actualizar la URL con la nueva fecha
-                updateURLWithDate(e.target.value);
-                // Refrescar ambos tabs cuando cambia la fecha desde el header
-                fetchTodasReservasPorFecha();
-                if (mesaSeleccionada) {
-                  fetchReservasMesa();
-                }
-              }}
-              className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
-            />
-          </div>
-        </div>
-      </div>
+
       
       <div className="flex flex-1 md:flex-row overflow-hidden">
 
@@ -668,8 +632,25 @@ const reloadReservas = async () => {
                   {reservasMesa.length === 0 ? (
                     <p className="text-gray-600 italic text-center mb-6">No hay reservas para esta fecha.</p>
                   ) : (
-                    <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-350px)] pr-1 scrollbar-thin scrollbar-thumb-orange-400 scrollbar-track-orange-100">
-                      {sortReservasByHorario(reservasMesa).map((reserva) => (
+                    <>
+                      {/* Indicadores de resumen para mesa específica */}
+                      <div className="flex justify-between items-center mb-4 px-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-700">Próximas:</span>
+                          <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-sm font-bold">
+                            {reservasMesa.length}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-700">Total personas:</span>
+                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-bold">
+                            {reservasMesa.reduce((total, reserva) => total + (reserva.cantidad_personas || 0), 0)}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-350px)] pr-1 scrollbar-thin scrollbar-thumb-orange-400 scrollbar-track-orange-100">
+                        {sortReservasByHorario(reservasMesa).map((reserva) => (
                         <motion.div
                           whileHover={{ scale: 1.02 }}
                           key={reserva.id}
@@ -696,11 +677,10 @@ const reloadReservas = async () => {
                             <div className="text-gray-500 italic text-sm truncate">📝 {reserva.notas}</div>
                           )}
                         </motion.div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* BOTONES */}
+                        ))}
+                      </div>
+                    </>
+                  )}                  {/* BOTONES */}
                   <div className="mt-auto space-y-3 pt-6">
                     <motion.button
                       whileHover={{ scale: 1.03 }}
@@ -739,6 +719,23 @@ const reloadReservas = async () => {
                 <h2 className="text-xl font-bold mb-4 text-[#3C2022]">
                   Todas las Reservas
                 </h2>
+                
+                {/* Indicadores de resumen */}
+                <div className="flex justify-between items-center mb-4 px-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">Próximas:</span>
+                    <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-sm font-bold">
+                      {todasReservas.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">Total personas:</span>
+                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-bold">
+                      {todasReservas.reduce((total, reserva) => total + (reserva.cantidad_personas || 0), 0)}
+                    </span>
+                  </div>
+                </div>
+                
                 {todasReservas.length === 0 ? (
                   <p className="text-gray-600 italic text-center mb-6">No hay reservas para esta fecha.</p>
                 ) : (
@@ -1161,6 +1158,24 @@ const reloadReservas = async () => {
 
                 {/* Reservas */}
                 <div className="space-y-3">
+                  {/* Indicadores de resumen para mesa específica (móvil) */}
+                  {reservasMesa.length > 0 && (
+                    <div className="flex justify-between items-center mb-3 px-2 py-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-700">Próximas:</span>
+                        <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-bold">
+                          {reservasMesa.length}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-700">Total personas:</span>
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-bold">
+                          {reservasMesa.reduce((total, reserva) => total + (reserva.cantidad_personas || 0), 0)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
                   {reservasMesa.length === 0 ? (
                     <p className="text-gray-500 text-center">No hay reservas para esta fecha</p>
                   ) : (
@@ -1219,6 +1234,24 @@ const reloadReservas = async () => {
             ) : (
               // Todas las reservas content
               <div className="space-y-3">
+                {/* Indicadores de resumen para todas las reservas (móvil) */}
+                {todasReservas.length > 0 && (
+                  <div className="flex justify-between items-center mb-3 px-2 py-2 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-700">Próximas:</span>
+                      <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-bold">
+                        {todasReservas.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-700">Total personas:</span>
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-bold">
+                        {todasReservas.reduce((total, reserva) => total + (reserva.cantidad_personas || 0), 0)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
                 {todasReservas.length === 0 ? (
                   <p className="text-gray-500 text-center">No hay reservas para esta fecha</p>
                 ) : (
