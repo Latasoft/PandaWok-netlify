@@ -7,6 +7,7 @@ import ReservationDetailsPanel from '../components/ReservationDetailsPanel';
 import NewReservationModal from '../components/NewReservationModal';
 import BlockTableModal from '../components/BlockTableModal';
 import AgregarMesaModal from '../components/NuevaMesaModal';
+import EditMesaModal from '../components/EditMesaModal';
 import WalkInModal from '../components/WalkInModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -87,6 +88,7 @@ const Timeline: React.FC = () => {
   const [showNewReservationModal, setShowNewReservationModal] = useState(false);
   const [showBlockTableModal, setShowBlockTableModal] = useState(false);
   const [showAgregarMesaModal, setShowAgregarMesaModal] = useState(false);
+  const [showEditMesaModal, setShowEditMesaModal] = useState(false);
   const [showWalkInModal, setShowWalkInModal] = useState(false);
   type TabType = 'mesa' | 'todas';
   const location = useLocation();
@@ -474,6 +476,78 @@ const Timeline: React.FC = () => {
     }
   };
 
+  // Editar mesa
+  const handleEditMesa = async (mesaData: Partial<Mesa>) => {
+    if (!mesaSeleccionada) return;
+    
+    try {
+      await axios.put(`${API_BASE_URL}/api/mesas/${mesaSeleccionada.id}`, mesaData);
+      
+      // Recargar las mesas del salón actual
+      if (selectedSalonId) {
+        const res = await axios.get(`${API_BASE_URL}/api/mesas/salon/${selectedSalonId}/mesas`);
+        const mesasConPos = res.data.map((mesa: Mesa) => ({
+          ...mesa,
+          posX: typeof mesa.posX === 'number' && !isNaN(mesa.posX) ? mesa.posX : 50 + mesa.id * 5,
+          posY: typeof mesa.posY === 'number' && !isNaN(mesa.posY) ? mesa.posY : 50 + mesa.id * 5,
+        }));
+        setMesas(mesasConPos);
+        
+        // Actualizar la mesa seleccionada si sigue en el mismo salón
+        const updatedMesa = mesasConPos.find((m: Mesa) => m.id === mesaSeleccionada.id);
+        if (updatedMesa) {
+          setMesaSeleccionada(updatedMesa);
+        } else {
+          setMesaSeleccionada(null);
+        }
+      }
+      
+      alert('Mesa editada correctamente');
+      setShowEditMesaModal(false);
+    } catch (error) {
+      console.error('Error editando mesa:', error);
+      alert('Error al editar la mesa. Intenta de nuevo.');
+    }
+  };
+
+  // Borrar mesa
+  const handleDeleteMesa = async () => {
+    if (!mesaSeleccionada) return;
+    
+    const confirmDelete = window.confirm(
+      `¿Estás seguro de que quieres borrar la Mesa ${mesaSeleccionada.numero_mesa}? Esta acción no se puede deshacer.`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      await axios.delete(`${API_BASE_URL}/api/mesas/${mesaSeleccionada.id}`);
+      
+      // Recargar las mesas del salón actual
+      if (selectedSalonId) {
+        const res = await axios.get(`${API_BASE_URL}/api/mesas/salon/${selectedSalonId}/mesas`);
+        const mesasConPos = res.data.map((mesa: Mesa) => ({
+          ...mesa,
+          posX: typeof mesa.posX === 'number' && !isNaN(mesa.posX) ? mesa.posX : 50 + mesa.id * 5,
+          posY: typeof mesa.posY === 'number' && !isNaN(mesa.posY) ? mesa.posY : 50 + mesa.id * 5,
+        }));
+        setMesas(mesasConPos);
+      }
+      
+      // Limpiar la mesa seleccionada ya que fue borrada
+      setMesaSeleccionada(null);
+      setReservasMesa([]);
+      setBloqueosMesa([]);
+      setReservaSeleccionada(null);
+      setBloqueoSeleccionado(null);
+      
+      alert('Mesa borrada correctamente');
+    } catch (error) {
+      console.error('Error borrando mesa:', error);
+      alert('Error al borrar la mesa. Puede que tenga reservas asociadas. Intenta de nuevo.');
+    }
+  };
+
   // Primero, agregar la función de recarga
 const reloadReservas = async () => {
   try {
@@ -706,6 +780,28 @@ const reloadReservas = async () => {
                     >
                       Sentar Walk-in
                     </motion.button>
+                    
+                    {/* Separador */}
+                    <div className="border-t border-gray-200 pt-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <motion.button
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => setShowEditMesaModal(true)}
+                          className="py-2 bg-yellow-500 text-white rounded-md font-semibold shadow hover:bg-yellow-600 transition text-sm"
+                        >
+                          ✏️ Editar Mesa
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => handleDeleteMesa()}
+                          className="py-2 bg-red-600 text-white rounded-md font-semibold shadow hover:bg-red-700 transition text-sm"
+                        >
+                          🗑️ Borrar Mesa
+                        </motion.button>
+                      </div>
+                    </div>
                   </div>
                 </>
               ) : (
@@ -1229,6 +1325,22 @@ const reloadReservas = async () => {
                   >
                     Sentar Walk-in
                   </button>
+                  
+                  {/* Botones de gestión de mesa */}
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
+                    <button
+                      onClick={() => setShowEditMesaModal(true)}
+                      className="py-2 bg-yellow-500 text-white rounded-lg font-medium text-sm"
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMesa()}
+                      className="py-2 bg-red-600 text-white rounded-lg font-medium text-sm"
+                    >
+                      🗑️ Borrar
+                    </button>
+                  </div>
                 </div>
               </>
             ) : (
@@ -1382,6 +1494,16 @@ const reloadReservas = async () => {
           salones={salones}
           onClose={() => setShowAgregarMesaModal(false)}
           onAgregar={handleAgregarMesa}
+        />
+      )}
+
+      {showEditMesaModal && mesaSeleccionada && (
+        <EditMesaModal
+          isOpen={showEditMesaModal}
+          onClose={() => setShowEditMesaModal(false)}
+          mesa={mesaSeleccionada}
+          salones={salones}
+          onEdit={handleEditMesa}
         />
       )}
 
