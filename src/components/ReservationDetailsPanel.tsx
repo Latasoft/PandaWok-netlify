@@ -240,9 +240,12 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
   // Función para formatear fecha con date-fns
   const formatearFechaSegura = (fechaString: string): string => {
     try {
-      const fecha = parseISO(fechaString);
+      // Forzar interpretación local sin conversión UTC
+      const [year, month, day] = fechaString.split('T')[0].split('-');
+      const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       return format(fecha, 'dd/MM/yyyy', { locale: es });
     } catch (error) {
+      console.error('Error formateando fecha:', error);
       return fechaString; // fallback si hay error
     }
   };
