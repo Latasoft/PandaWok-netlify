@@ -245,7 +245,7 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
       const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       
       // Agregar un día más porque me aburri 😎
-      fecha.setDate(fecha.getDate() + 1);
+      fecha.setDate(fecha.getDate());
       
       return format(fecha, 'dd/MM/yyyy', { locale: es });
     } catch (error) {
