@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import ClientTagsModal from './ClientTagsModal';
 import { motion } from 'framer-motion';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -234,6 +236,16 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
     }
   };
 
+  // Función para formatear fecha con date-fns
+  const formatearFechaSegura = (fechaString: string): string => {
+    try {
+      const fecha = parseISO(fechaString);
+      return format(fecha, 'dd/MM/yyyy', { locale: es });
+    } catch (error) {
+      return fechaString; // fallback si hay error
+    }
+  };
+
   if (loading || !reserva) {
     return (
       <div className="fixed top-0 right-0 w-1/2 max-w-[700px] h-full bg-white p-6 shadow-lg border-l z-50 flex items-center justify-center">
@@ -250,7 +262,7 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
           <div>
             <h2 className="text-2xl font-bold text-yellow-800">{reserva.cliente?.nombre} {reserva.cliente?.apellido}</h2>
             <p className="text-xs text-gray-600">Origen: {reserva.origen || 'Web'}</p>
-            <p className="text-xs text-gray-500">Creada el {reserva.fecha_creacion || new Date().toLocaleDateString()}</p>
+            <p className="text-xs text-gray-500">Creada el {reserva.fecha_creacion ? formatearFechaSegura(reserva.fecha_creacion) : new Date().toLocaleDateString()}</p>
             {/* Agregar la hora de la reserva aquí */}
             <p className="text-xs text-gray-600">Hora: {getHorarioDescripcion(reserva)}</p>
 
@@ -292,7 +304,7 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
           <div className="space-y-4 text-base text-gray-800">
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-orange-600" />
-              <span className="text-orange-800 font-medium">Fecha: {new Date(reserva.fecha_reserva).toLocaleDateString()}</span>
+              <span className="text-orange-800 font-medium">Fecha: {formatearFechaSegura(reserva.fecha_reserva)}</span>
             </div>
             <div className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-blue-600" />
@@ -475,7 +487,7 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
             )}
 
             <div className="text-xs text-yellow-700">
-              Última actualización: {new Date(reserva.fecha_creacion || '').toLocaleString()}
+              Última actualización: {reserva.fecha_creacion ? formatearFechaSegura(reserva.fecha_creacion) : 'No disponible'}
             </div>
           </div>
         )}
@@ -501,7 +513,7 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
                   {historial.map((res) => (
                     <tr key={res.id} className="hover:bg-yellow-100">
                       <td className="px-4 py-2 border border-yellow-300">
-                        {new Date(res.fecha_reserva).toLocaleDateString()}
+                        {formatearFechaSegura(res.fecha_reserva)}
                       </td>
                       <td className="px-4 py-2 border border-yellow-300">
                         {res.mesa_numero || res.mesa_id}
