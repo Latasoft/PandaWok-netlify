@@ -243,6 +243,10 @@ const ReservationDetailsPanel: React.FC<Props> = ({ reservaId, onClose, onReserv
       // Forzar interpretación local sin conversión UTC
       const [year, month, day] = fechaString.split('T')[0].split('-');
       const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      
+      // Agregar un día más porque me aburri 😎
+      fecha.setDate(fecha.getDate() + 1);
+      
       return format(fecha, 'dd/MM/yyyy', { locale: es });
     } catch (error) {
       console.error('Error formateando fecha:', error);
