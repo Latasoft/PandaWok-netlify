@@ -319,6 +319,7 @@ const ReservationForm: React.FC = () => {
 
       const dt = new Date(year, monthIndex, day, hours, minutes, 0);
       return dt.toISOString();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       return new Date().toISOString();
     }
@@ -1149,7 +1150,7 @@ const ReservationForm: React.FC = () => {
                   value={formData.firstName}
                   onChange={handleInputChange}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none"
-                  placeholder="Prueba"
+                  placeholder="Ingrese nombre"
                 />
               </div>
               <div>
@@ -1160,7 +1161,7 @@ const ReservationForm: React.FC = () => {
                   value={formData.lastName}
                   onChange={handleInputChange}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none"
-                  placeholder="Latasoft"
+                  placeholder="Ingrese apellido"
                 />
               </div>
             </div>
@@ -1187,7 +1188,7 @@ const ReservationForm: React.FC = () => {
                       value={getPhoneNumber()}
                       onChange={handlePhoneChange}
                       className="flex-1 p-3 border border-gray-300 rounded-r-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none h-full"
-                      placeholder="942978432"
+                      placeholder="Ingrese celular"
                     />
                   </div>
                   
