@@ -5,6 +5,7 @@ interface Cliente {
   nombre: string;
   apellido: string;
   correo_electronico: string;
+  telefono?: string;
 }
 
 interface Reserva {
@@ -206,6 +207,8 @@ const ConfirmarReserva: React.FC = () => {
               <th className="border border-gray-300 p-2">ID</th>
               <th className="border border-gray-300 p-2">Cliente</th>
               <th className="border border-gray-300 p-2">Correo</th>
+              <th className="border border-gray-300 p-2">Teléfono</th>
+              <th className="border border-gray-300 p-2">Personas</th>
               <th className="border border-gray-300 p-2">Fecha</th>
               <th className="border border-gray-300 p-2">Estado</th>
               <th className="border border-gray-300 p-2">Cambiar Estado</th>
@@ -214,7 +217,7 @@ const ConfirmarReserva: React.FC = () => {
           <tbody>
             {filteredReservas.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-4">
+                <td colSpan={8} className="text-center py-4">
                   {searchTerm || filtroEstado !== 'todos' || filtroFecha
                     ? "No hay reservas que coincidan con los filtros."
                     : "No hay reservas disponibles."
@@ -236,6 +239,12 @@ const ConfirmarReserva: React.FC = () => {
                     </td>
                     <td className="border border-gray-300 p-2">
                       {reserva.cliente ? reserva.cliente.correo_electronico : "-"}
+                    </td>
+                    <td className="border border-gray-300 p-2 text-center">
+                      {reserva.cliente?.telefono || "-"}
+                    </td>
+                    <td className="border border-gray-300 p-2 text-center">
+                      {reserva.cantidad_personas}
                     </td>
                     <td className="border border-gray-300 p-2 text-center">
                       {new Date(reserva.fecha_reserva).toLocaleDateString()}
