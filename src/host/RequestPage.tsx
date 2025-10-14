@@ -372,6 +372,7 @@ const getHorarioRange = (horarioId: number | null): string => {
                           <th className="border border-gray-300 p-2 text-white">Fecha</th>
                           <th className="border border-gray-300 p-2 text-white">Horario</th>
                           <th className="border border-gray-300 p-2 text-white">Personas</th>
+                          <th className="border border-gray-300 p-2 text-white">Teléfono</th>
                           <th className="border border-gray-300 p-2 text-white">Estado</th>
                           <th className="border border-gray-300 p-2 text-white">Cambiar Estado</th>
                         </tr>
@@ -379,7 +380,7 @@ const getHorarioRange = (horarioId: number | null): string => {
                       <tbody>
                         {reservas.length === 0 ? (
                           <tr>
-                            <td colSpan={8} className="text-center py-4 text-white">
+                            <td colSpan={9} className="text-center py-4 text-white">
                               No hay reservas disponibles.
                             </td>
                           </tr>
@@ -408,6 +409,9 @@ const getHorarioRange = (horarioId: number | null): string => {
                                 </td>
                                 <td className="border border-gray-300 p-2 text-center text-white">
                                   {reserva.cantidad_personas}
+                                </td>
+                                <td className="border border-gray-300 p-2 text-center text-white">
+                                  {reserva.cliente?.telefono || "-"}
                                 </td>
                                 <td className="border border-gray-300 p-2 text-center">
                                   <EstadoBadge estado={estadoActual} />
