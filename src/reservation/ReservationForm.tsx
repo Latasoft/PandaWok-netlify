@@ -2,6 +2,25 @@ import React, { useState, useEffect } from 'react';
 import emailjs from '@emailjs/browser';
 import logo from '../assets/pandawok-brown.png';
 
+// Interfaces
+interface Cliente {
+  id: number;
+  nombre: string;
+  apellido: string;
+  correo_electronico: string;
+  telefono?: string;
+}
+
+interface ReservaData {
+  id: number;
+  cliente_id: number | null;
+  fecha_reserva: string;
+  cantidad_personas: number;
+  notas?: string;
+  horario_id?: number;
+  cliente?: Cliente;
+}
+
 const ReservationForm: React.FC = () => {
   const [createdReservaId, setCreatedReservaId] = useState<number | null>(null);
   const [selectedPeople, setSelectedPeople] = useState('2');
@@ -35,6 +54,7 @@ const ReservationForm: React.FC = () => {
     comments: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [reservaData, setReservaData] = useState<ReservaData | null>(null); // Datos de la reserva para modificar
 
   const timeSlots = [
     '12:30 pm', '1:00 pm', '1:30 pm', '2:00 pm', '2:30 pm',
@@ -92,45 +112,77 @@ const ReservationForm: React.FC = () => {
   };
 
   const handleConfirmModify = async () => {
-      const horarioId = timeSlotToId[(modifiedData.time || selectedTime) as keyof typeof timeSlotToId] || null; // <-- Obtener ID del horario modificado
+    const horarioId = timeSlotToId[(modifiedData.time || selectedTime) as keyof typeof timeSlotToId] || null; // <-- Obtener ID del horario modificado
 
-  console.log('handleConfirmModify called'); // <-- Agregar para verificar si se ejecuta
-  console.log('createdReservaId:', createdReservaId); // <-- Verificar si tiene valor
-  if (!createdReservaId) {
-    console.log('No createdReservaId, returning'); // <-- Agregar
-    return;
-  }
-  setSubmitting(true);
-  try {
-    const fechaReservaISO = buildFechaReservaISO(); // <-- Usar valores de modifiedData
-    console.log('fechaReservaISO:', fechaReservaISO); // <-- Verificar fecha
-    const payload = {
-      nombre: formData.firstName,
-      apellido: formData.lastName,
-      correo_electronico: modifiedData.email,
-      telefono: modifiedData.phone,
-      horario_id: horarioId, // <-- Enviar ID
-      mesa_id: null,
-      fecha_reserva: fechaReservaISO,
-      cantidad_personas: parseInt(modifiedData.people, 10),
-      notas: modifiedData.comments,
-    };
-    console.log('payload:', payload); // <-- Verificar payload
-
-    const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : 'http://localhost:5000';
-    console.log('base URL:', base); // <-- Verificar URL
-    const res = await fetch(`${base}/api/reservas/${createdReservaId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    console.log('fetch response status:', res.status); // <-- Verificar respuesta
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('Error response:', text);
-      throw new Error('Error modificando la reserva');
+    console.log('handleConfirmModify called'); // <-- Agregar para verificar si se ejecuta
+    console.log('createdReservaId:', createdReservaId); // <-- Verificar si tiene valor
+    if (!createdReservaId) {
+      console.log('No createdReservaId, returning'); // <-- Agregar
+      return;
     }
+    setSubmitting(true);
+    try {
+      const fechaReservaISO = buildFechaReservaISO(); // <-- Usar valores de modifiedData
+      console.log('fechaReservaISO:', fechaReservaISO); // <-- Verificar fecha
+      
+      const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : 'http://localhost:5000';
+      console.log('base URL:', base); // <-- Verificar URL
+      
+      // Primero actualizar los datos del cliente si hay cliente_id
+      if (reservaData?.cliente_id) {
+        const clientePayload = {
+          nombre: formData.firstName,
+          apellido: formData.lastName,
+          correo_electronico: formData.email,
+          telefono: formData.phone
+        };
+        
+        console.log('clientePayload:', clientePayload);
+        console.log('cliente_id:', reservaData.cliente_id);
+        
+        // Validar que los campos requeridos estén presentes
+        if (!formData.firstName || !formData.lastName || !formData.email) {
+          throw new Error('Faltan datos requeridos del cliente: nombre, apellido y email son obligatorios');
+        }
+        
+        const clienteRes = await fetch(`${base}/api/clients/${reservaData.cliente_id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(clientePayload),
+        });
+        
+        if (!clienteRes.ok) {
+          const text = await clienteRes.text();
+          console.error('Error response cliente:', clienteRes.status, text);
+          throw new Error(`Error modificando los datos del cliente (${clienteRes.status}): ${clienteRes.statusText}`);
+        }
+        
+        console.log('Cliente actualizado exitosamente');
+      }
+      
+      // Luego actualizar los datos de la reserva
+      const payload = {
+        cliente_id: reservaData?.cliente_id || null, // <-- Preservar cliente_id
+        mesa_id: null,
+        horario_id: horarioId, // <-- Enviar ID
+        fecha_reserva: fechaReservaISO,
+        cantidad_personas: parseInt(modifiedData.people, 10),
+        notas: modifiedData.comments,
+      };
+      console.log('payload reserva:', payload); // <-- Verificar payload
+
+      const res = await fetch(`${base}/api/reservas/${createdReservaId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('fetch response status:', res.status); // <-- Verificar respuesta
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Error response:', text);
+        throw new Error('Error modificando la reserva');
+      }
 
     alert('Reserva modificada exitosamente');
     setShowModifyForm(false);
@@ -146,6 +198,76 @@ const ReservationForm: React.FC = () => {
 
   const handleContinueReservation = () => {
     setShowConfirmForm(true);
+  };
+
+  // Función para cargar datos de la reserva existente
+  const loadReservaData = async () => {
+    if (!createdReservaId) return;
+    
+    try {
+      const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : 'http://localhost:5000';
+      const res = await fetch(`${base}/api/reservas/${createdReservaId}`);
+      
+      if (!res.ok) {
+        throw new Error('Error cargando datos de la reserva');
+      }
+      
+      const data = await res.json();
+      const reserva = data.reserva;
+      
+      // Actualizar estados con los datos de la reserva
+      setReservaData(reserva);
+      
+      if (reserva.cliente) {
+        setFormData(prev => ({
+          ...prev,
+          firstName: reserva.cliente.nombre || '',
+          lastName: reserva.cliente.apellido || '',
+          email: reserva.cliente.correo_electronico || '',
+          phone: reserva.cliente.telefono || '',
+          comments: reserva.notas || ''
+        }));
+      }
+      
+      // Actualizar modifiedData con los datos actuales
+      const fechaFormateada = formatearFechaParaUI(reserva.fecha_reserva);
+      const horaFormateada = formatearHoraParaUI(reserva.horario_id);
+      
+      setModifiedData({
+        people: reserva.cantidad_personas.toString(),
+        date: fechaFormateada,
+        time: horaFormateada,
+        phone: reserva.cliente?.telefono || '',
+        email: reserva.cliente?.correo_electronico || '',
+        comments: reserva.notas || ''
+      });
+      
+    } catch (error) {
+      console.error('Error cargando reserva:', error);
+    }
+  };
+
+  // Función para formatear fecha para la UI
+  const formatearFechaParaUI = (fechaISO: string): string => {
+    try {
+      const fecha = new Date(fechaISO);
+      return formatDateSpanish(fecha.getDate(), fecha.getMonth(), fecha.getFullYear());
+    } catch {
+      return selectedDate;
+    }
+  };
+
+  // Función para formatear hora para la UI
+  const formatearHoraParaUI = (horarioId: number | null): string => {
+    if (!horarioId) return selectedTime;
+    
+    // Buscar la hora correspondiente al horario_id
+    for (const [time, id] of Object.entries(timeSlotToId)) {
+      if (id === horarioId) {
+        return time;
+      }
+    }
+    return selectedTime;
   };
 
   useEffect(() => {
@@ -249,16 +371,12 @@ const ReservationForm: React.FC = () => {
   })();
   };
 
-  const handleModifyReservation = () => {
+  const handleModifyReservation = async () => {
     console.log('Modify button clicked');
-    setModifiedData({
-      people: selectedPeople,
-      date: selectedDate,
-      time: selectedTime,
-      phone: getPhoneNumber(),
-      email: formData.email,
-      comments: formData.comments
-    });
+    
+    // Cargar datos de la reserva primero
+    await loadReservaData();
+    
     setShowSuccessScreen(false);
     setShowModifyForm(true);
   };
@@ -291,9 +409,13 @@ const ReservationForm: React.FC = () => {
   // Construye un ISO datetime a partir de selectedDate y selectedTime
   const buildFechaReservaISO = (): string => {
     try {
-      if (!selectedDate) return new Date().toISOString();
+      // Usar datos modificados si estamos en modo modificación
+      const fecha = showModifyForm ? modifiedData.date : selectedDate;
+      const hora = showModifyForm ? modifiedData.time : selectedTime;
+      
+      if (!fecha) return new Date().toISOString();
 
-      const parts = selectedDate.split(', ');
+      const parts = fecha.split(', ');
       if (parts.length < 2) return new Date().toISOString();
       const dayMonth = parts[1]; // "Ene 12"
       const [monthAbbr, dayStr] = dayMonth.split(' ');
@@ -305,7 +427,7 @@ const ReservationForm: React.FC = () => {
 
       if (monthIndex === -1 || isNaN(day)) return new Date().toISOString();
 
-      const tm = selectedTime.trim().toLowerCase();
+      const tm = hora.trim().toLowerCase();
       const timeMatch = tm.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/);
       let hours = 0;
       let minutes = 0;
@@ -719,17 +841,38 @@ const ReservationForm: React.FC = () => {
             </div>
           </div>
 
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              {formData.firstName && formData.lastName 
-                ? `${formData.firstName} ${formData.lastName}` 
-                : 'Usuario'}
-            </h3>
-          </div>
-
           <div className="space-y-6 mb-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Datos del Cliente</h3>
+            </div>
+
+            {/* Datos del cliente editables */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
+                <input
+                  type="text"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none"
+                  placeholder="Nombre"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Apellido *</label>
+                <input
+                  type="text"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none"
+                  placeholder="Apellido"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono</label>
                 <div className="relative country-dropdown-container">
                   <div className="flex h-12">
                     <button
@@ -745,11 +888,10 @@ const ReservationForm: React.FC = () => {
                     </button>
                     <input
                       type="tel"
-                      name="phoneNumber"
-                      value={modifiedData.phone}
-                      onChange={(e) => setModifiedData(prev => ({ ...prev, phone: e.target.value }))
-                      }
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                       className="flex-1 p-3 border border-gray-300 rounded-r-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none h-full"
+                      placeholder="942978432"
                     />
                   </div>
                   
@@ -776,16 +918,19 @@ const ReservationForm: React.FC = () => {
               </div>
               
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Correo electrónico *</label>
                 <input
                   type="email"
-                  name="email"
-                  value={modifiedData.email}
-                  onChange={(e) => setModifiedData(prev => ({ ...prev, email: e.target.value }))
-                  }
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 hover:border-gray-400 transition-all duration-200 outline-none h-12"
-                  placeholder="test@gmail.com"
+                  placeholder="correo@ejemplo.com"
                 />
               </div>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Datos de la Reserva</h3>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
