@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import NewRequestModal from '../components/NewRequestModal';
-import emailjs from '@emailjs/browser';
+import { EMAILJS_CONFIG, sendEmailWithRetry } from '../utils/emailConfig';
 
 // Define una interfaz para los datos de la solicitud, similar a lo que enviará el modal
 interface RequestData {
@@ -166,15 +166,6 @@ const RequestPage: React.FC = () => {
   }, [page, limit, filtroFechaInicio, filtroFechaFin, filtroEstado, searchTerm]);
 
   useEffect(() => {
-    // inicializar EmailJS una sola vez en el frontend
-    try {
-      emailjs.init('BgQlos8cUH1tIBIo5');
-    } catch (err) {
-      console.warn('EmailJS init warning', err);
-    }
-  }, []); // <-- vacío: solo al montar
-
-  useEffect(() => {
     fetchReservas();
   }, [fetchReservas]);
 
@@ -199,62 +190,60 @@ const RequestPage: React.FC = () => {
       // Obtener la descripción del horario para el email
       const horarioDescripcion = getHorarioRange(reservaActual.horario_id);
       
-      // Enviar email según el cambio de estado
+      // Enviar email según el cambio de estado usando configuración centralizada
       try {
         if (nuevoEstado === 'confirmada' && estadoAnterior !== 'confirmada') {
-          // Email de confirmación
-          await emailjs.send(
-            'service_1jci0t7',
-            'template_pdi4dqa', // Template de confirmación
+          // Email de confirmación usando template_panda_confirma
+          const fechaFormateada = new Date(reservaActual.fecha_reserva).toLocaleDateString('es-CL', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+          });
+
+          await sendEmailWithRetry(
+            EMAILJS_CONFIG.templateConfirmacionAdmin,
             {
-              to_name: `${reservaActual.cliente.nombre} ${reservaActual.cliente.apellido}`,
               to_email: reservaActual.cliente.correo_electronico,
-              reservation_date: new Date(reservaActual.fecha_reserva).toLocaleDateString(),
+              customer_name: `${reservaActual.cliente.nombre} ${reservaActual.cliente.apellido}`,
+              reservation_id: reservaActual.id,
+              reservation_date: fechaFormateada,
               reservation_time: horarioDescripcion,
               party_size: reservaActual.cantidad_personas,
-              phone: reservaActual.cliente.telefono || 'No especificado',
+              phone: reservaActual.cliente.telefono || 'No proporcionado',
               comments: reservaActual.notas || 'Sin comentarios adicionales',
-            },
-            'BgQlos8cUH1tIBIo5'
+              from_name: 'Panda Wok Valparaíso',
+              reply_to: 'reservas@pandawok.cl'
+            }
           );
-          console.log('Email de confirmación enviado exitosamente');
+          console.log('✅ Email de confirmación enviado exitosamente');
         } else if (nuevoEstado === 'cancelada' && estadoAnterior !== 'cancelada') {
-          // Email de cancelación
-          await emailjs.send(
-            'service_1jci0t7',
-            'template_hhabtvi', // Template de cancelación
+          // Email de cancelación - puedes crear una plantilla específica si quieres
+          const fechaFormateada = new Date(reservaActual.fecha_reserva).toLocaleDateString('es-CL', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+          });
+
+          await sendEmailWithRetry(
+            EMAILJS_CONFIG.templateCliente, // Usar template genérico para cancelación
             {
-              to_name: `${reservaActual.cliente.nombre} ${reservaActual.cliente.apellido}`,
               to_email: reservaActual.cliente.correo_electronico,
-              reservation_date: new Date(reservaActual.fecha_reserva).toLocaleDateString(),
+              customer_name: `${reservaActual.cliente.nombre} ${reservaActual.cliente.apellido}`,
+              reservation_id: reservaActual.id,
+              reservation_date: fechaFormateada,
               reservation_time: horarioDescripcion,
               party_size: reservaActual.cantidad_personas,
-              phone: reservaActual.cliente.telefono || 'No especificado',
-              comments: reservaActual.notas || 'Reserva cancelada por el restaurante',
-            },
-            'BgQlos8cUH1tIBIo5'
+              phone: reservaActual.cliente.telefono || 'No proporcionado',
+              comments: 'Tu reserva ha sido cancelada. Si tienes alguna duda, contáctanos.',
+              from_name: 'Panda Wok Valparaíso',
+              reply_to: 'reservas@pandawok.cl'
+            }
           );
-          console.log('Email de cancelación enviado exitosamente');
-        } else if (nuevoEstado === 'pendiente' && estadoAnterior !== 'pendiente') {
-          // Email informativo de cambio a pendiente
-          await emailjs.send(
-            'service_1jci0t7',
-            'template_pdi4dqa', // Template básico
-            {
-              to_name: `${reservaActual.cliente.nombre} ${reservaActual.cliente.apellido}`,
-              to_email: reservaActual.cliente.correo_electronico,
-              reservation_date: new Date(reservaActual.fecha_reserva).toLocaleDateString(),
-              reservation_time: horarioDescripcion,
-              party_size: reservaActual.cantidad_personas,
-              phone: reservaActual.cliente.telefono || 'No especificado',
-              comments: reservaActual.notas || 'Reserva en estado pendiente de confirmación',
-            },
-            'BgQlos8cUH1tIBIo5'
-          );
-          console.log('Email de estado pendiente enviado exitosamente');
+          console.log('✅ Email de cancelación enviado exitosamente');
         }
+        // No enviamos email para cambio a 'pendiente' ya que es un estado intermedio
       } catch (emailError) {
-        console.warn('Estado actualizado correctamente, pero hubo un problema al enviar el email:', emailError);
+        console.warn('⚠️ Estado actualizado correctamente, pero hubo un problema al enviar el email:', emailError);
         // No mostrar error al usuario ya que el estado sí se actualizó
       }
       
