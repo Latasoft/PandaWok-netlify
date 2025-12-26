@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import emailjs, { EMAILJS_CONFIG, sendEmailWithRetry } from '../utils/emailConfig';
+import { EMAILJS_CONFIG, sendEmailWithRetry } from '../utils/emailConfig';
 import logo from '../assets/pandawok-brown.png';
 
 // Interfaces
@@ -827,103 +827,143 @@ const ReservationForm: React.FC = () => {
   }
 
   if (showSuccessScreen) {
+    const isGroupReservation = parseInt(selectedPeople) >= 20;
+    
     return (
       <div className="min-h-screen flex items-center justify-center p-5" style={{ backgroundColor: '#211B17' }}>
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full border border-gray-200">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-12 max-w-3xl w-full border border-gray-200">
+          {/* Success Header */}
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-100 to-green-50 rounded-full mb-6 shadow-lg">
+              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">Reserva confirmada</h1>
-          </div>
-
-          <div className="text-center mb-8">
-            <p className="text-gray-600 mb-6">
-              Pronto estarás recibiendo un correo de confirmación con los datos de tu reserva.
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-3">
+              Solicitud Enviada
+            </h1>
+            <p className="text-gray-600 text-lg">
+              Hemos recibido tu solicitud de reserva. Te contactaremos pronto para confirmarla.
             </p>
           </div>
 
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-icons text-gray-600 text-xl">location_on</span>
-              <span className="text-gray-800 font-medium">Panda Wok Valparaíso</span>
+          {/* Reservation Details Card */}
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 mb-8 border border-orange-200">
+            <div className="flex items-center gap-2 mb-5 pb-4 border-b border-orange-200">
+              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="text-orange-900 font-semibold text-lg">Panda Wok Valparaíso</span>
             </div>
             
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="flex items-center gap-2">
-                <span className="material-icons text-gray-600 text-xl">person</span>
-                <span className="text-gray-800">{selectedPeople} Persona{parseInt(selectedPeople) > 1 ? 's' : ''}</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center gap-3 bg-white rounded-lg p-3 shadow-sm">
+                <div className="bg-orange-100 rounded-lg p-2">
+                  <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Personas</p>
+                  <p className="text-sm font-bold text-gray-800">{selectedPeople}</p>
+                </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                <span className="material-icons text-gray-600 text-xl">calendar_today</span>
-                <span className="text-gray-800">{selectedDate}</span>
+              <div className="flex items-center gap-3 bg-white rounded-lg p-3 shadow-sm">
+                <div className="bg-orange-100 rounded-lg p-2">
+                  <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Fecha</p>
+                  <p className="text-sm font-bold text-gray-800">{selectedDate}</p>
+                </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                <span className="material-icons text-gray-600 text-xl">access_time</span>
-                <span className="text-gray-800">{selectedTime}</span>
+              <div className="flex items-center gap-3 bg-white rounded-lg p-3 shadow-sm">
+                <div className="bg-orange-100 rounded-lg p-2">
+                  <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Hora</p>
+                  <p className="text-sm font-bold text-gray-800">{selectedTime}</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
-            <h4 className="text-orange-800 font-semibold mb-2">Información importante que debes saber</h4>
-            <p className="text-orange-700 text-sm mb-3">
-              Esta reserva tendrá una tolerancia máxima de 15 minutos. Por favor llámanos si no vas a poder llegar a tiempo.
-            </p>
-            <p className="text-orange-700 text-sm font-medium mb-2">Notas Adicionales</p>
-            <p className="text-orange-700 text-sm mb-2">
-              <strong>En comentarios puedes ingresar preferencia de ubicación de mesa, lejos o cerca del escenario.</strong>
-            </p>
-            <p className="text-orange-700 text-sm">
-              Recuerde que el tiempo límite de permanencia es de 3 horas.
-            </p>
-          </div>
-
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="material-icons text-gray-600 text-xl">cake</span>
-              <span className="text-gray-800 font-medium">
-                Ingresa tu fecha de cumpleaños si deseas recibir promociones y cortesías para esa fecha. (opcional)
-              </span>
-            </div>
-            
-            <div className="flex gap-4">
-              <select className="flex-1 p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none">
-                <option value="">Día</option>
-                {Array.from({ length: 31 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>{i + 1}</option>
-                ))}
-              </select>
-              
-              <select className="flex-1 p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none">
-                <option value="">Mes</option>
-                {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map((month, index) => (
-                  <option key={index} value={index + 1}>{month}</option>
-                ))}
-              </select>
-              
-              <button className="bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-6 rounded-lg transition-colors">
-                Enviar
-              </button>
+          {/* Email Confirmation Notice */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 mb-8 flex items-start gap-3">
+            <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <div>
+              <p className="text-blue-900 font-semibold mb-1">Revisa tu correo electrónico</p>
+              <p className="text-blue-800 text-sm">
+                Te hemos enviado un correo con los detalles de tu solicitud. Nuestro equipo se pondrá en contacto contigo para confirmar la disponibilidad de tu reserva.
+              </p>
             </div>
           </div>
 
-          <div className="flex gap-4">
+          {/* Important Information */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-5 mb-8">
+            <div className="flex items-start gap-3 mb-3">
+              <svg className="w-6 h-6 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <h4 className="text-amber-900 font-semibold mb-2">Información Importante</h4>
+                <ul className="space-y-2 text-sm text-amber-800">
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-600 mt-0.5">•</span>
+                    <span>Tolerancia máxima de <strong>15 minutos</strong>. Por favor llámanos si vas a llegar tarde.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-600 mt-0.5">•</span>
+                    <span>Tiempo de permanencia: <strong>3 horas</strong></span>
+                  </li>
+                  {isGroupReservation && (
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-600 mt-0.5">•</span>
+                      <span>Para grupos mayores a 20 personas se requiere <strong>abono del 50%</strong></span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4">
             <button 
-              onClick={handleModifyReservation}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+              onClick={() => {
+                setShowSuccessScreen(false);
+                setShowConfirmForm(false);
+                setShowRequestForm(false);
+                setFormData({
+                  firstName: '',
+                  lastName: '',
+                  email: '',
+                  phone: '',
+                  horario_id: null,
+                  comments: '',
+                  acceptTerms: false
+                });
+                window.location.href = '/';
+              }}
+              className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
             >
-              Modificar reserva
+              Volver al Inicio
             </button>
             <button 
               onClick={() => window.location.reload()}
-              className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+              className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
             >
-              Cancelar reserva
+              Nueva Reserva
             </button>
           </div>
         </div>
@@ -1545,7 +1585,9 @@ const ReservationForm: React.FC = () => {
         {showInfoAlert && (
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 relative">
             <div className="flex gap-3">
-              <div className="text-orange-500 text-xl">ℹ️</div>
+              <svg className="w-6 h-6 text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               <div className="flex-1">
                 <h4 className="text-orange-800 font-semibold mb-2">Información importante que debes saber</h4>
                 <ul className="text-gray-700 text-sm space-y-1 list-disc list-inside">
@@ -1609,7 +1651,9 @@ const ReservationForm: React.FC = () => {
         {isLargeGroup && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 relative">
             <div className="flex gap-3">
-              <div className="text-blue-500 text-xl">⚠️</div>
+              <svg className="w-6 h-6 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
               <div className="flex-1">
                 <p className="text-gray-700 text-sm mb-3">
                   La cantidad de personas en tu grupo supera el límite para reservas en línea.
