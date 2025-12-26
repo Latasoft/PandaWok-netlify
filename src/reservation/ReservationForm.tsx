@@ -120,57 +120,99 @@ const ReservationForm: React.FC = () => {
 
     setSubmitting(true);
     try {
-      // Enviar correo al restaurante
-      const templateParamsRestaurante = {
-        to_email: 'reservaspandawok@gmail.com',
-        customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
-        customer_email: formData.email,
-        customer_phone: formData.phone || getPhoneNumber(),
-        reservation_date: selectedDate,
-        reservation_time: selectedTime,
-        party_size: selectedPeople,
-        comments: formData.comments || 'Sin comentarios',
-        from_name: 'Sistema de Reservas Panda Wok',
-        reply_to: formData.email
+      // 1. GUARDAR LA RESERVA EN LA BASE DE DATOS
+      const fechaReservaISO = buildFechaReservaISO();
+      const horarioId = timeSlotToId[selectedTime as keyof typeof timeSlotToId] || null;
+      
+      const payload = {
+        nombre: formData.firstName,
+        apellido: formData.lastName,
+        correo_electronico: formData.email,
+        telefono: formData.phone || getPhoneNumber(),
+        mesa_id: null,
+        horario_id: horarioId,
+        fecha_reserva: fechaReservaISO,
+        cantidad_personas: parseInt(selectedPeople, 10),
+        notas: `GRUPO GRANDE (${selectedPeople} personas). Horario preferido: ${selectedTime}. ${formData.comments || ''}`,
       };
 
-      console.log('EmailJS templateParams (solicitud grupo - restaurante):', templateParamsRestaurante);
+      console.log('Guardando reserva grupal en BD:', payload);
 
-      await sendEmailWithRetry(
-        EMAILJS_CONFIG.templateRestaurante,
-        templateParamsRestaurante
-      );
+      const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : 'http://localhost:5000';
+      const res = await fetch(`${base}/api/reservas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-      console.log('EmailJS: solicitud de grupo enviada al restaurante');
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Error response:', text);
+        throw new Error('Error creando la reserva grupal');
+      }
 
-      // Enviar correo de confirmación al cliente
-      const templateParamsCliente = {
-        to_email: formData.email,
-        customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
-        reservation_date: selectedDate,
-        reservation_time: selectedTime,
-        party_size: selectedPeople,
-        phone: formData.phone || getPhoneNumber(),
-        comments: formData.comments || '',
-        from_name: 'Panda Wok Valparaíso',
-        reply_to: 'reservas@pandawok.cl'
-      };
+      const data = await res.json();
+      console.log('Reserva grupal creada con ID:', data.reserva.id);
+      setCreatedReservaId(data.reserva.id);
 
-      console.log('EmailJS templateParams (solicitud grupo - cliente):', templateParamsCliente);
+      // 2. ENVIAR CORREOS DE NOTIFICACIÓN
+      try {
+        // Correo al restaurante
+        const templateParamsRestaurante = {
+          to_email: 'reservaspandawok@gmail.com',
+          customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
+          customer_email: formData.email,
+          customer_phone: formData.phone || getPhoneNumber(),
+          reservation_date: selectedDate,
+          reservation_time: selectedTime,
+          party_size: selectedPeople,
+          comments: formData.comments || 'Sin comentarios',
+          from_name: 'Sistema de Reservas Panda Wok',
+          reply_to: formData.email
+        };
 
-      await sendEmailWithRetry(
-        EMAILJS_CONFIG.templateCliente,
-        templateParamsCliente
-      );
+        console.log('EmailJS templateParams (solicitud grupo - restaurante):', templateParamsRestaurante);
 
-      console.log('EmailJS: confirmación enviada al cliente');
+        await sendEmailWithRetry(
+          EMAILJS_CONFIG.templateRestaurante,
+          templateParamsRestaurante
+        );
+
+        console.log('✅ Correo de grupo enviado al restaurante');
+
+        // Correo de confirmación al cliente
+        const templateParamsCliente = {
+          to_email: formData.email,
+          customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
+          reservation_date: selectedDate,
+          reservation_time: selectedTime,
+          party_size: selectedPeople,
+          phone: formData.phone || getPhoneNumber(),
+          comments: formData.comments || '',
+          from_name: 'Panda Wok Valparaíso',
+          reply_to: 'reservas@pandawok.cl'
+        };
+
+        console.log('EmailJS templateParams (solicitud grupo - cliente):', templateParamsCliente);
+
+        await sendEmailWithRetry(
+          EMAILJS_CONFIG.templateCliente,
+          templateParamsCliente
+        );
+
+        console.log('✅ Confirmación enviada al cliente');
+      } catch (emailErr) {
+        console.error('❌ Error enviando correos (después de reintentos):', emailErr);
+        // No bloqueamos la UX si falla el email, la reserva ya está guardada
+        alert('Reserva creada exitosamente, pero hubo un problema enviando los correos de confirmación.');
+      }
 
       // Mostrar mensaje de éxito
       setShowRequestForm(false);
       setShowSuccessScreen(true);
     } catch (error) {
-      console.error('Error enviando solicitud:', error);
-      alert('Error al enviar la solicitud. Por favor intente nuevamente.');
+      console.error('Error en reserva grupal:', error);
+      alert('Error al procesar la solicitud de reserva. Por favor intente nuevamente.');
     } finally {
       setSubmitting(false);
     }
