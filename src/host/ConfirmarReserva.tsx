@@ -95,67 +95,97 @@ const ConfirmarReserva: React.FC = () => {
 
   const actualizarEstado = async (id: number) => {
     const nuevoEstado = estadoSeleccionado[id];
-    if (!nuevoEstado) return;
+    if (!nuevoEstado) {
+      console.warn('⚠️ No hay estado seleccionado para la reserva', id);
+      return;
+    }
 
     const reserva = reservas.find(r => r.id === id);
-    if (!reserva) return;
+    if (!reserva) {
+      console.warn('⚠️ Reserva no encontrada:', id);
+      return;
+    }
+
+    console.log('🔄 Actualizando reserva:', { id, nuevoEstado, reserva });
 
     setLoadingEstadoId(id);
     try {
       // 1. Actualizar estado en el backend
+      console.log('📤 Enviando actualización al backend...');
       await api.post(`reservas/${id}/estado`, { estado: nuevoEstado });
+      console.log('✅ Backend actualizado correctamente');
       
       // 2. Si el estado es "confirmada" Y el cliente tiene correo, enviar email de confirmación
-      if (nuevoEstado === 'confirmada' && reserva.cliente?.correo_electronico) {
-        try {
-          // Formatear fecha
-          const fechaReserva = new Date(reserva.fecha_reserva);
-          const fechaFormateada = fechaReserva.toLocaleDateString('es-CL', { 
-            day: '2-digit', 
-            month: 'long', 
-            year: 'numeric' 
-          });
+      if (nuevoEstado === 'confirmada') {
+        console.log('📧 Verificando envío de correo de confirmación...');
+        
+        if (!reserva.cliente?.correo_electronico) {
+          console.warn('⚠️ Cliente no tiene correo electrónico:', reserva.cliente);
+          alert('Reserva confirmada, pero el cliente no tiene correo electrónico registrado.');
+        } else {
+          try {
+            console.log('🔧 Preparando datos del correo...');
+            
+            // Formatear fecha
+            const fechaReserva = new Date(reserva.fecha_reserva);
+            const fechaFormateada = fechaReserva.toLocaleDateString('es-CL', { 
+              day: '2-digit', 
+              month: 'long', 
+              year: 'numeric' 
+            });
 
-          // Mapeo básico de horarios (ajusta según tu sistema)
-          const horarios: Record<number, string> = {
-            1: '12:30 pm', 2: '1:00 pm', 3: '1:30 pm',
-            4: '2:00 pm', 5: '2:30 pm', 6: '3:00 pm',
-            7: '3:30 pm', 8: '4:00 pm', 9: '4:30 pm'
-          };
-          const horario = reserva.horario_id ? horarios[reserva.horario_id] || 'Por confirmar' : 'Por confirmar';
+            // Mapeo básico de horarios (ajusta según tu sistema)
+            const horarios: Record<number, string> = {
+              1: '12:30 pm', 2: '1:00 pm', 3: '1:30 pm',
+              4: '2:00 pm', 5: '2:30 pm', 6: '3:00 pm',
+              7: '3:30 pm', 8: '4:00 pm', 9: '4:30 pm'
+            };
+            const horario = reserva.horario_id ? horarios[reserva.horario_id] || 'Por confirmar' : 'Por confirmar';
 
-          const templateParams = {
-            to_email: reserva.cliente.correo_electronico,
-            customer_name: `${reserva.cliente.nombre} ${reserva.cliente.apellido}`,
-            reservation_id: reserva.id,
-            reservation_date: fechaFormateada,
-            reservation_time: horario,
-            party_size: reserva.cantidad_personas,
-            phone: reserva.cliente.telefono || 'No proporcionado',
-            comments: reserva.notas || 'Sin comentarios adicionales',
-            from_name: 'Panda Wok Valparaíso',
-            reply_to: 'reservas@pandawok.cl'
-          };
+            const templateParams = {
+              to_email: reserva.cliente.correo_electronico,
+              customer_name: `${reserva.cliente.nombre} ${reserva.cliente.apellido}`,
+              reservation_id: reserva.id,
+              reservation_date: fechaFormateada,
+              reservation_time: horario,
+              party_size: reserva.cantidad_personas,
+              phone: reserva.cliente.telefono || 'No proporcionado',
+              comments: reserva.notas || 'Sin comentarios adicionales',
+              from_name: 'Panda Wok Valparaíso',
+              reply_to: 'reservas@pandawok.cl'
+            };
 
-          console.log('Enviando correo de confirmación:', templateParams);
+            console.log('📧 EMAILJS CONFIG:', {
+              templateId: EMAILJS_CONFIG.templateConfirmacionAdmin,
+              serviceId: EMAILJS_CONFIG.serviceId,
+              publicKey: EMAILJS_CONFIG.publicKey ? '✓ Configurado' : '✗ NO configurado'
+            });
+            
+            console.log('📧 Parámetros del correo:', templateParams);
 
-          await sendEmailWithRetry(
-            EMAILJS_CONFIG.templateConfirmacionAdmin,
-            templateParams
-          );
+            await sendEmailWithRetry(
+              EMAILJS_CONFIG.templateConfirmacionAdmin,
+              templateParams
+            );
 
-          console.log('✅ Correo de confirmación enviado exitosamente');
-        } catch (emailError) {
-          console.error('❌ Error enviando correo de confirmación:', emailError);
-          alert('Reserva actualizada, pero hubo un problema al enviar el correo de confirmación al cliente.');
+            console.log('✅ Correo de confirmación enviado exitosamente a:', reserva.cliente.correo_electronico);
+            alert(`Reserva confirmada y correo enviado a ${reserva.cliente.correo_electronico}`);
+          } catch (emailError) {
+            console.error('❌ Error enviando correo de confirmación:', emailError);
+            console.error('❌ Stack trace:', (emailError as Error).stack);
+            alert('Reserva actualizada, pero hubo un problema al enviar el correo de confirmación al cliente. Revisa la consola para más detalles.');
+          }
         }
       }
 
       // 3. Recargar lista de reservas
+      console.log('🔄 Recargando lista de reservas...');
       await fetchReservas();
+      console.log('✅ Lista de reservas actualizada');
     } catch (error) {
-      console.error('Error al actualizar estado:', error);
-      alert("Error al actualizar estado");
+      console.error('❌ Error al actualizar estado:', error);
+      console.error('❌ Stack trace:', (error as Error).stack);
+      alert("Error al actualizar estado. Revisa la consola para más detalles.");
     } finally {
       setLoadingEstadoId(null);
     }

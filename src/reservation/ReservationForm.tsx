@@ -159,7 +159,7 @@ const ReservationForm: React.FC = () => {
       try {
         // Correo al restaurante
         const templateParamsRestaurante = {
-          to_email: 'reservaspandawok@gmail.com',
+          to_email: import.meta.env.VITE_EMAIL_RESTAURANTE || 'reservaspandawok@gmail.com',
           customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
           customer_email: formData.email,
           customer_phone: formData.phone || getPhoneNumber(),
@@ -438,7 +438,7 @@ const ReservationForm: React.FC = () => {
         
         // 1. Notificar al restaurante
         const templateParamsRestaurante = {
-          to_email: 'reservaspandawok@gmail.com',
+          to_email: import.meta.env.VITE_EMAIL_RESTAURANTE || 'reservaspandawok@gmail.com',
           customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
           customer_email: formData.email,
           customer_phone: formData.phone || getPhoneNumber(),
