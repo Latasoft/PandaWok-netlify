@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import emailjs, { EMAILJS_CONFIG } from '../utils/emailConfig';
+import emailjs, { EMAILJS_CONFIG, sendEmailWithRetry } from '../utils/emailConfig';
 import logo from '../assets/pandawok-brown.png';
 
 // Interfaces
@@ -136,11 +136,9 @@ const ReservationForm: React.FC = () => {
 
       console.log('EmailJS templateParams (solicitud grupo - restaurante):', templateParamsRestaurante);
 
-      await emailjs.send(
-        EMAILJS_CONFIG.serviceId,
-        EMAILJS_CONFIG.templateGrupo,
-        templateParamsRestaurante,
-        EMAILJS_CONFIG.publicKey
+      await sendEmailWithRetry(
+        EMAILJS_CONFIG.templateRestaurante,
+        templateParamsRestaurante
       );
 
       console.log('EmailJS: solicitud de grupo enviada al restaurante');
@@ -160,11 +158,9 @@ const ReservationForm: React.FC = () => {
 
       console.log('EmailJS templateParams (solicitud grupo - cliente):', templateParamsCliente);
 
-      await emailjs.send(
-        EMAILJS_CONFIG.serviceId,
-        EMAILJS_CONFIG.templateConfirmacion,
-        templateParamsCliente,
-        EMAILJS_CONFIG.publicKey
+      await sendEmailWithRetry(
+        EMAILJS_CONFIG.templateCliente,
+        templateParamsCliente
       );
 
       console.log('EmailJS: confirmación enviada al cliente');
@@ -394,11 +390,36 @@ const ReservationForm: React.FC = () => {
         setCreatedReservaId(data.reserva.id); // <-- Agregar para guardar el ID
       }
 
-      // -- Correo manejado totalmente desde el frontend (mismo patrón que RequestPage) --
+      // -- Envío de correos con retry --
       try {
         const dt = new Date(fechaReservaISO);
-        const templateParams = {
-          to_email: formData.email, // debe coincidir con "To: ${to_email}" en el template de EmailJS
+        
+        // 1. Notificar al restaurante
+        const templateParamsRestaurante = {
+          to_email: 'reservaspandawok@gmail.com',
+          customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
+          customer_email: formData.email,
+          customer_phone: formData.phone || getPhoneNumber(),
+          reservation_date: dt.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }),
+          reservation_time: selectedTime,
+          party_size: String(selectedPeople),
+          comments: formData.comments || 'Sin comentarios',
+          from_name: 'Sistema de Reservas Panda Wok',
+          reply_to: formData.email
+        };
+
+        console.log('EmailJS templateParams (restaurante):', templateParamsRestaurante);
+        
+        await sendEmailWithRetry(
+          EMAILJS_CONFIG.templateRestaurante,
+          templateParamsRestaurante
+        );
+
+        console.log('✅ Correo de notificación enviado al restaurante');
+
+        // 2. Confirmar al cliente
+        const templateParamsCliente = {
+          to_email: formData.email,
           customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
           reservation_date: dt.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }),
           reservation_time: selectedTime,
@@ -406,23 +427,21 @@ const ReservationForm: React.FC = () => {
           phone: formData.phone || getPhoneNumber(),
           comments: formData.comments || '',
           from_name: 'Panda Wok Valparaíso',
-          reply_to: 'no-reply@pandawok.cl'
+          reply_to: 'reservas@pandawok.cl'
         };
 
-        // debug: confirmar destinatario antes de enviar
-        console.log('EmailJS templateParams (creación):', templateParams);
+        console.log('EmailJS templateParams (cliente):', templateParamsCliente);
 
-        await emailjs.send(
-          EMAILJS_CONFIG.serviceId,
-          EMAILJS_CONFIG.templateConfirmacion,
-          templateParams,
-          EMAILJS_CONFIG.publicKey
+        await sendEmailWithRetry(
+          EMAILJS_CONFIG.templateCliente,
+          templateParamsCliente
         );
 
-        console.log('EmailJS: correo de confirmación (creación) enviado a', formData.email);
+        console.log('✅ Correo de confirmación enviado al cliente:', formData.email);
       } catch (emailErr) {
-        console.error('Error enviando EmailJS (creación):', emailErr);
-        // no bloqueamos la UX si falla el email
+        console.error('❌ Error enviando correos (después de reintentos):', emailErr);
+        // No bloqueamos la UX si falla el email, pero mostramos advertencia
+        alert('Reserva creada exitosamente, pero hubo un problema enviando los correos de confirmación.');
       }
 
       setShowConfirmForm(false);
