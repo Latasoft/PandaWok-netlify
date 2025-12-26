@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import emailjs from '@emailjs/browser';
+import emailjs, { EMAILJS_CONFIG } from '../utils/emailConfig';
 import logo from '../assets/pandawok-brown.png';
 
 // Interfaces
@@ -109,6 +109,75 @@ const ReservationForm: React.FC = () => {
 
   const handleBackToSelection = () => {
     setShowRequestForm(false);
+  };
+
+  const handleRequestSubmit = async () => {
+    if (submitting) return;
+    if (!formData.firstName || !formData.lastName || !formData.email) {
+      alert('Por favor complete todos los campos requeridos');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Enviar correo al restaurante
+      const templateParamsRestaurante = {
+        to_email: 'reservaspandawok@gmail.com',
+        customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
+        customer_email: formData.email,
+        customer_phone: formData.phone || getPhoneNumber(),
+        reservation_date: selectedDate,
+        reservation_time: selectedTime,
+        party_size: selectedPeople,
+        comments: formData.comments || 'Sin comentarios',
+        from_name: 'Sistema de Reservas Panda Wok',
+        reply_to: formData.email
+      };
+
+      console.log('EmailJS templateParams (solicitud grupo - restaurante):', templateParamsRestaurante);
+
+      await emailjs.send(
+        EMAILJS_CONFIG.serviceId,
+        EMAILJS_CONFIG.templateGrupo,
+        templateParamsRestaurante,
+        EMAILJS_CONFIG.publicKey
+      );
+
+      console.log('EmailJS: solicitud de grupo enviada al restaurante');
+
+      // Enviar correo de confirmación al cliente
+      const templateParamsCliente = {
+        to_email: formData.email,
+        customer_name: `${formData.firstName} ${formData.lastName}`.trim(),
+        reservation_date: selectedDate,
+        reservation_time: selectedTime,
+        party_size: selectedPeople,
+        phone: formData.phone || getPhoneNumber(),
+        comments: formData.comments || '',
+        from_name: 'Panda Wok Valparaíso',
+        reply_to: 'reservas@pandawok.cl'
+      };
+
+      console.log('EmailJS templateParams (solicitud grupo - cliente):', templateParamsCliente);
+
+      await emailjs.send(
+        EMAILJS_CONFIG.serviceId,
+        EMAILJS_CONFIG.templateConfirmacion,
+        templateParamsCliente,
+        EMAILJS_CONFIG.publicKey
+      );
+
+      console.log('EmailJS: confirmación enviada al cliente');
+
+      // Mostrar mensaje de éxito
+      setShowRequestForm(false);
+      setShowSuccessScreen(true);
+    } catch (error) {
+      console.error('Error enviando solicitud:', error);
+      alert('Error al enviar la solicitud. Por favor intente nuevamente.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleConfirmModify = async () => {
@@ -271,12 +340,8 @@ const ReservationForm: React.FC = () => {
   };
 
   useEffect(() => {
-    // Inicializa EmailJS en este componente (es idempotente)
-    try {
-      emailjs.init('BgQlos8cUH1tIBIo5');
-    } catch (err) {
-      console.warn('EmailJS init warning', err);
-    }
+    // EmailJS ya está inicializado en emailConfig.ts
+    // No necesitamos inicializarlo nuevamente aquí
   }, []);
 
   const handleConfirmReservation = () => {
@@ -348,10 +413,10 @@ const ReservationForm: React.FC = () => {
         console.log('EmailJS templateParams (creación):', templateParams);
 
         await emailjs.send(
-          'service_1jci0tIBIo5',
-          'template_9d4paeh',
+          EMAILJS_CONFIG.serviceId,
+          EMAILJS_CONFIG.templateConfirmacion,
           templateParams,
-          'BgQlos8cUH1tIBIo5'
+          EMAILJS_CONFIG.publicKey
         );
 
         console.log('EmailJS: correo de confirmación (creación) enviado a', formData.email);
@@ -1222,10 +1287,11 @@ const ReservationForm: React.FC = () => {
 
           <div className="text-center">
             <button 
-              disabled={!formData.firstName || !formData.lastName || !formData.email}
+              onClick={handleRequestSubmit}
+              disabled={!formData.firstName || !formData.lastName || !formData.email || submitting}
               className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 px-8 rounded-xl transition-all duration-200"
             >
-              Solicitar Reserva
+              {submitting ? 'Enviando...' : 'Solicitar Reserva'}
             </button>
           </div>
         </div>

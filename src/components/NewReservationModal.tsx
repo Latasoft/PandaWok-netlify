@@ -77,7 +77,11 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({
     const fetchAvailableTimes = async () => {
       try {
         setLoadingTimes(true);
-        const fechaStr = selectedDate.toISOString().split('T')[0];
+        // Formato de fecha en zona horaria local
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(selectedDate.getDate()).padStart(2, '0');
+        const fechaStr = `${year}-${month}-${day}`;
         console.log('📅 Fecha formateada:', fechaStr);
         
         let response;
@@ -163,7 +167,12 @@ const NewReservationModal: React.FC<NewReservationModalProps> = ({
       return;
     }
 
-    const fechaReservaStr = selectedDate.toISOString().split('T')[0];
+    // Formato de fecha en zona horaria local (evita problemas con UTC)
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const fechaReservaStr = `${year}-${month}-${day}`;
+    
     const horarioSeleccionado = availableTimes.find(h => formatTime(h.hora_inicio) === selectedTime);
 
     if (!horarioSeleccionado) {

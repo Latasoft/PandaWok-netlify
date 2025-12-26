@@ -95,7 +95,11 @@ const Timeline: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>('mesa');
   const [todasReservas, setTodasReservas] = useState<Reserva[]>([]);
-  const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(new Date().toISOString().split('T')[0]);
+  // Fecha inicial en zona horaria local
+  const today = new Date();
+  const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(
+    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  );
   const pendingScrollIdRef = useRef<string | null>(null);
   const [sortOrder] = useState<'asc' | 'desc'>('asc');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
