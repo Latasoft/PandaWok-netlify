@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { EMAILJS_CONFIG, sendEmailWithRetry } from "../utils/emailConfig";
 
 interface Cliente {
   nombre: string;
@@ -15,6 +16,7 @@ interface Reserva {
   estado: string;
   cantidad_personas: number;
   notas: string | null;
+  horario_id?: number | null;
 }
 
 const api = axios.create({
@@ -95,11 +97,64 @@ const ConfirmarReserva: React.FC = () => {
     const nuevoEstado = estadoSeleccionado[id];
     if (!nuevoEstado) return;
 
+    const reserva = reservas.find(r => r.id === id);
+    if (!reserva) return;
+
     setLoadingEstadoId(id);
     try {
+      // 1. Actualizar estado en el backend
       await api.post(`reservas/${id}/estado`, { estado: nuevoEstado });
+      
+      // 2. Si el estado es "confirmada" Y el cliente tiene correo, enviar email de confirmación
+      if (nuevoEstado === 'confirmada' && reserva.cliente?.correo_electronico) {
+        try {
+          // Formatear fecha
+          const fechaReserva = new Date(reserva.fecha_reserva);
+          const fechaFormateada = fechaReserva.toLocaleDateString('es-CL', { 
+            day: '2-digit', 
+            month: 'long', 
+            year: 'numeric' 
+          });
+
+          // Mapeo básico de horarios (ajusta según tu sistema)
+          const horarios: Record<number, string> = {
+            1: '12:30 pm', 2: '1:00 pm', 3: '1:30 pm',
+            4: '2:00 pm', 5: '2:30 pm', 6: '3:00 pm',
+            7: '3:30 pm', 8: '4:00 pm', 9: '4:30 pm'
+          };
+          const horario = reserva.horario_id ? horarios[reserva.horario_id] || 'Por confirmar' : 'Por confirmar';
+
+          const templateParams = {
+            to_email: reserva.cliente.correo_electronico,
+            customer_name: `${reserva.cliente.nombre} ${reserva.cliente.apellido}`,
+            reservation_id: reserva.id,
+            reservation_date: fechaFormateada,
+            reservation_time: horario,
+            party_size: reserva.cantidad_personas,
+            phone: reserva.cliente.telefono || 'No proporcionado',
+            comments: reserva.notas || 'Sin comentarios adicionales',
+            from_name: 'Panda Wok Valparaíso',
+            reply_to: 'reservas@pandawok.cl'
+          };
+
+          console.log('Enviando correo de confirmación:', templateParams);
+
+          await sendEmailWithRetry(
+            EMAILJS_CONFIG.templateConfirmacionAdmin,
+            templateParams
+          );
+
+          console.log('✅ Correo de confirmación enviado exitosamente');
+        } catch (emailError) {
+          console.error('❌ Error enviando correo de confirmación:', emailError);
+          alert('Reserva actualizada, pero hubo un problema al enviar el correo de confirmación al cliente.');
+        }
+      }
+
+      // 3. Recargar lista de reservas
       await fetchReservas();
-    } catch {
+    } catch (error) {
+      console.error('Error al actualizar estado:', error);
       alert("Error al actualizar estado");
     } finally {
       setLoadingEstadoId(null);

@@ -6,6 +6,7 @@ const EMAILJS_CONFIG = {
   serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
   templateRestaurante: import.meta.env.VITE_EMAILJS_TEMPLATE_RESTAURANTE,
   templateCliente: import.meta.env.VITE_EMAILJS_TEMPLATE_CLIENTE,
+  templateConfirmacionAdmin: import.meta.env.VITE_EMAILJS_TEMPLATE_CONFIRMACION_ADMIN,
 };
 
 // Validar que existan las variables de entorno
