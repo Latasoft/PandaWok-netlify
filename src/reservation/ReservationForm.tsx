@@ -430,6 +430,13 @@ const ReservationForm: React.FC = () => {
 
       console.log('fetch response status:', res.status); // <-- Verificar respuesta
       if (!res.ok) {
+        if (res.status === 409) {
+          // Reserva duplicada
+          const errorData = await res.json();
+          alert(`Ya tienes una reserva para esta fecha y horario.\n\n${errorData.error || 'Por favor elige otro horario o fecha.'}`);
+          setSubmitting(false);
+          return;
+        }
         const text = await res.text();
         console.error('Error response:', text);
         throw new Error('Error creando la reserva');
