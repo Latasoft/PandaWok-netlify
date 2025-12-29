@@ -960,7 +960,7 @@ const ReservationForm: React.FC = () => {
                   comments: '',
                   acceptTerms: false
                 });
-                window.location.href = '/';
+                window.location.href = 'https://pandawok.cl';
               }}
               className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
             >
