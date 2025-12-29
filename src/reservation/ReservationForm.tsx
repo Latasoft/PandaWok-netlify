@@ -146,6 +146,13 @@ const ReservationForm: React.FC = () => {
       });
 
       if (!res.ok) {
+        if (res.status === 409) {
+          // Reserva duplicada
+          const errorData = await res.json();
+          alert(`Ya tienes una reserva para esta fecha y horario.\n\n${errorData.error || 'Por favor elige otro horario o fecha.'}`);
+          setSubmitting(false);
+          return;
+        }
         const text = await res.text();
         console.error('Error response:', text);
         throw new Error('Error creando la reserva grupal');
@@ -178,7 +185,7 @@ const ReservationForm: React.FC = () => {
           templateParamsRestaurante
         );
 
-        console.log('✅ Correo de grupo enviado al restaurante');
+        console.log('Correo de grupo enviado al restaurante');
 
         // Correo de confirmación al cliente
         const templateParamsCliente = {
@@ -200,7 +207,7 @@ const ReservationForm: React.FC = () => {
           templateParamsCliente
         );
 
-        console.log('✅ Confirmación enviada al cliente');
+        console.log('Confirmación enviada al cliente');
       } catch (emailErr) {
         console.error('❌ Error enviando correos (después de reintentos):', emailErr);
         // No bloqueamos la UX si falla el email, la reserva ya está guardada

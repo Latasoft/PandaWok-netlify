@@ -198,6 +198,14 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onCr
       // onClose(); // Descomentar si quieres cerrar automáticamente
     } catch (err: unknown) {
       console.error('Error creando reserva:', err);
+      
+      // Verificar si es un error 409 (reserva duplicada)
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const errorMsg = err.response.data?.error || 'Ya existe una reserva para este cliente en esta fecha y horario';
+        setError(`⚠️ RESERVA DUPLICADA: ${errorMsg}\n\nPuedes:\n• Cambiar el horario\n• Cambiar la fecha\n• Verificar si el cliente ya tiene una reserva`);
+        setLoading(false);
+        return;
+      }
       let msg = 'Error al crear la reserva';
       
       if (axios.isAxiosError(err)) {
