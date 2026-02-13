@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { EMAILJS_CONFIG, sendEmailWithRetry } from '../utils/emailConfig';
 import logo from '../assets/pandawok-brown.png';
+import LockedReservationPage from '../components/LockedReservationPage';
 
 // Interfaces
 interface Cliente {
@@ -103,6 +104,12 @@ const ReservationForm: React.FC = () => {
 
   const isLargeGroup = parseInt(selectedPeople) >= 20;
 
+  // Verificar si es el 14 de febrero
+  const isValentinesDayBlocked = () => {
+    const today = new Date();
+    return today.getMonth() === 1 && today.getDate() === 14; // mes 1 es febrero
+  };
+
   const handleRequestReservation = () => {
     setShowRequestForm(true);
   };
@@ -116,6 +123,25 @@ const ReservationForm: React.FC = () => {
     if (!formData.firstName || !formData.lastName || !formData.email) {
       alert('Por favor complete todos los campos requeridos');
       return;
+    }
+
+    // Validar que la fecha seleccionada no sea 14 de febrero
+    if (selectedDate) {
+      const dateRegex = /(\d{1,2})\s\w+/;
+      const match = selectedDate.match(dateRegex);
+      if (match) {
+        const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const monthMatch = selectedDate.match(/\d{1,2}\s(\w+)/);
+        if (monthMatch) {
+          const monthIndex = monthNames.indexOf(monthMatch[1]);
+          const dayMatch = selectedDate.match(/(\d{1,2})\s/);
+          if (monthIndex === 1 && dayMatch && parseInt(dayMatch[1]) === 14) {
+            alert('Las reservas no están disponibles para el 14 de febrero.');
+            setSubmitting(false);
+            return;
+          }
+        }
+      }
     }
 
     setSubmitting(true);
@@ -604,6 +630,12 @@ const ReservationForm: React.FC = () => {
   };
 
   const handleDateSelect = (day: number) => {
+    // Validar que no sea 14 de febrero
+    if (currentMonth.getMonth() === 1 && day === 14) {
+      alert('Las reservas no están disponibles para el 14 de febrero.');
+      return;
+    }
+    
     const selectedDateFormatted = formatDateSpanish(day, currentMonth.getMonth(), currentMonth.getFullYear());
     
     if (showModifyForm) {
@@ -691,7 +723,8 @@ const ReservationForm: React.FC = () => {
       const currentDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       const isPast = currentDate < today;
       const isFuture = currentDate > maxDate;
-      const isAvailable = !isPast && !isFuture;
+      const isValentineBlocked = currentMonth.getMonth() === 1 && day === 14; // Febrero 14 bloqueado
+      const isAvailable = !isPast && !isFuture && !isValentineBlocked;
       
       const isSelected = selectedDate && (() => {
         try {
@@ -719,15 +752,19 @@ const ReservationForm: React.FC = () => {
           key={day}
           onClick={() => isAvailable ? handleDateSelect(day) : null}
           disabled={!isAvailable}
-          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-medium transition-colors ${
+          title={isValentineBlocked ? "Reservas bloqueadas el 14 de febrero" : ""}
+          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-medium transition-colors relative ${
             isSelected 
               ? 'bg-blue-500 text-white' 
+              : isValentineBlocked
+              ? 'bg-red-100 text-red-600 cursor-not-allowed border border-red-400'
               : isAvailable
               ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
               : 'text-gray-400 cursor-not-allowed'
           }`}
         >
           {day}
+          {isValentineBlocked && <span className="absolute top-0 right-0 w-1.5 h-1.5 bg-red-600 rounded-full"></span>}
         </button>
       );
     }
@@ -1583,6 +1620,11 @@ const ReservationForm: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  // Mostrar página de bloqueo si es el 14 de febrero
+  if (isValentinesDayBlocked()) {
+    return <LockedReservationPage />;
   }
 
   return (
