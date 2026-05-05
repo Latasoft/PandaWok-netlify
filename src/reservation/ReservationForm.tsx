@@ -630,13 +630,17 @@ const ReservationForm: React.FC = () => {
   };
 
   const handleDateSelect = (day: number) => {
-    // Validar que no sea 14 de febrero
-    if (currentMonth.getMonth() === 1 && day === 14) {
-      alert('Las reservas no están disponibles para el 14 de febrero.');
-      return;
-    }
-    
-    const selectedDateFormatted = formatDateSpanish(day, currentMonth.getMonth(), currentMonth.getFullYear());
+  if (currentMonth.getMonth() === 1 && day === 14) {
+    alert('Las reservas no están disponibles para el 14 de febrero.');
+    return;
+  }
+
+  if (currentMonth.getMonth() === 4 && day === 10) {
+    alert('Las reservas no están disponibles para el 10 de mayo.');
+    return;
+  }
+
+  const selectedDateFormatted = formatDateSpanish(day, currentMonth.getMonth(), currentMonth.getFullYear());
     
     if (showModifyForm) {
       setModifiedData(prev => ({ ...prev, date: selectedDateFormatted }));
@@ -724,7 +728,10 @@ const ReservationForm: React.FC = () => {
       const isPast = currentDate < today;
       const isFuture = currentDate > maxDate;
       const isValentineBlocked = currentMonth.getMonth() === 1 && day === 14; // Febrero 14 bloqueado
-      const isAvailable = !isPast && !isFuture && !isValentineBlocked;
+      
+
+const isMay10Blocked = currentMonth.getMonth() === 4 && day === 10; // Bloqueo 10 de Mayo
+      const isAvailable = !isPast && !isFuture && !isValentineBlocked && !isMay10Blocked;
       
       const isSelected = selectedDate && (() => {
         try {
@@ -752,19 +759,27 @@ const ReservationForm: React.FC = () => {
           key={day}
           onClick={() => isAvailable ? handleDateSelect(day) : null}
           disabled={!isAvailable}
-          title={isValentineBlocked ? "Reservas bloqueadas el 14 de febrero" : ""}
-          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-medium transition-colors relative ${
-            isSelected 
-              ? 'bg-blue-500 text-white' 
-              : isValentineBlocked
-              ? 'bg-red-100 text-red-600 cursor-not-allowed border border-red-400'
-              : isAvailable
-              ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-              : 'text-gray-400 cursor-not-allowed'
-          }`}
+          title={
+  isValentineBlocked
+    ? "Reservas bloqueadas el 14 de febrero"
+    : isMay10Blocked
+    ? "Reservas no disponibles el 10 de mayo"
+    : ""
+}
+         className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-medium transition-colors relative ${
+  isSelected 
+    ? 'bg-blue-500 text-white' 
+    : (isValentineBlocked || isMay10Blocked)
+    ? 'bg-red-100 text-red-600 cursor-not-allowed border border-red-400'
+    : isAvailable
+    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+    : 'text-gray-400 cursor-not-allowed'
+}`}
         >
           {day}
-          {isValentineBlocked && <span className="absolute top-0 right-0 w-1.5 h-1.5 bg-red-600 rounded-full"></span>}
+          {(isValentineBlocked || isMay10Blocked) && (
+  <span className="absolute top-0 right-0 w-1.5 h-1.5 bg-red-600 rounded-full"></span>
+)}
         </button>
       );
     }
