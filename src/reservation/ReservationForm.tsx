@@ -118,8 +118,28 @@ const ReservationForm: React.FC = () => {
     setShowRequestForm(false);
   };
 
+  const isMay10Selected = () => {
+  const fecha = showModifyForm ? modifiedData.date : selectedDate;
+
+  if (!fecha) return false;
+
+  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const match = fecha.match(/,\s(\w+)\s(\d{1,2})/);
+
+  if (!match) return false;
+
+  const monthIndex = monthNames.indexOf(match[1]);
+  const day = parseInt(match[2], 10);
+
+  return monthIndex === 4 && day === 10;
+};
+
   const handleRequestSubmit = async () => {
     if (submitting) return;
+    if (isMay10Selected()) {
+  alert('Las reservas no están disponibles para el 10 de mayo.');
+  return;
+}
     if (!formData.firstName || !formData.lastName || !formData.email) {
       alert('Por favor complete todos los campos requeridos');
       return;
@@ -260,6 +280,11 @@ const ReservationForm: React.FC = () => {
       console.log('No createdReservaId, returning'); // <-- Agregar
       return;
     }
+
+    if (isMay10Selected()) {
+  alert('Las reservas no están disponibles para el 10 de mayo.');
+  return;
+}
     setSubmitting(true);
     try {
       const fechaReservaISO = buildFechaReservaISO(); // <-- Usar valores de modifiedData
@@ -426,6 +451,11 @@ const ReservationForm: React.FC = () => {
       alert('Complete los datos requeridos');
       return;
     }
+
+    if (isMay10Selected()) {
+  alert('Las reservas no están disponibles para el 10 de mayo.');
+  return;
+}
 
     setSubmitting(true);
     try {
