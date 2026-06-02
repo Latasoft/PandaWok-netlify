@@ -760,7 +760,7 @@ const ReservationForm: React.FC = () => {
       const isValentineBlocked = currentMonth.getMonth() === 1 && day === 14; // Febrero 14 bloqueado
       
 
-const isMay10Blocked = currentMonth.getMonth() === 4 && day === 10; // Bloqueo 10 de Mayo
+const isMay10Blocked = currentMonth.getMonth() === 5 && day === 21; // Bloqueo 21 de junio
       const isAvailable = !isPast && !isFuture && !isValentineBlocked && !isMay10Blocked;
       
       const isSelected = selectedDate && (() => {
@@ -793,7 +793,7 @@ const isMay10Blocked = currentMonth.getMonth() === 4 && day === 10; // Bloqueo 1
   isValentineBlocked
     ? "Reservas bloqueadas el 14 de febrero"
     : isMay10Blocked
-    ? "Reservas no disponibles el 10 de mayo"
+    ? "Reservas no disponibles"
     : ""
 }
          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-medium transition-colors relative ${
