@@ -1835,7 +1835,7 @@ const isMay10Blocked = currentMonth.getMonth() === 5 && day === 21; // Bloqueo 2
 
             {horarioBlocked && (
               <span className="block text-xs mt-1">
-                No disponible
+                No disponibles
               </span>
             )}
           </button>
