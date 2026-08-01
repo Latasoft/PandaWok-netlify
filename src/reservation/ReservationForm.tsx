@@ -1236,6 +1236,7 @@ const isMay10Blocked = currentMonth.getMonth() === 5 && day === 21; // Bloqueo 2
       {time}
     </option>
   ))}
+  
 </select>
               </div>
               
@@ -1773,30 +1774,76 @@ const isMay10Blocked = currentMonth.getMonth() === 5 && day === 21; // Bloqueo 2
           </div>
         )}
 
-        {!isLargeGroup && (
-          <div className="mb-8">
-            <label className="block text-sm font-semibold text-gray-700 mb-4">Selecciona tu horario preferido</label>
-            <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-              {timeSlots.map((time) => (
-                <button
-                  key={time}
-                  className={`p-4 rounded-xl text-sm font-semibold transition-all duration-200 transform hover:scale-105 ${
-                    selectedTime === time 
-                      ? 'text-white shadow-xl scale-105' 
-                      : 'text-white hover:shadow-lg'
-                  }`}
-                  style={{ 
-                    backgroundColor: selectedTime === time ? '#8B4513' : '#3C2022',
-                    boxShadow: selectedTime === time ? '0 10px 25px rgba(139, 69, 19, 0.3)' : '0 4px 15px rgba(60, 32, 34, 0.2)'
-                  }}
-                  onClick={() => setSelectedTime(time)}
-                >
-                  {time}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+{!isLargeGroup && (
+  <div className="mb-8">
+    <label className="block text-sm font-semibold text-gray-700 mb-4">
+      Selecciona tu horario preferido
+    </label>
+
+    <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+      {timeSlots.map((time) => {
+        const horarioId =
+          timeSlotToId[time as keyof typeof timeSlotToId];
+
+        const horarioBlocked =
+          selectedDate ===
+            formatDateSpanish(
+              13,
+              7,
+              currentMonth.getFullYear()
+            ) &&
+          horarioId > 2;
+
+        return (
+          <button
+            key={time}
+            type="button"
+            disabled={horarioBlocked}
+            onClick={() => {
+              if (!horarioBlocked) {
+                setSelectedTime(time);
+              }
+            }}
+            title={
+              horarioBlocked
+                ? 'Horario no disponible'
+                : ''
+            }
+            className={`p-4 rounded-xl text-sm font-semibold transition-all duration-200 transform ${
+              horarioBlocked
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+                : selectedTime === time
+                  ? 'text-white shadow-xl scale-105'
+                  : 'text-white hover:shadow-lg hover:scale-105'
+            }`}
+            style={
+              horarioBlocked
+                ? undefined
+                : {
+                    backgroundColor:
+                      selectedTime === time
+                        ? '#8B4513'
+                        : '#3C2022',
+                    boxShadow:
+                      selectedTime === time
+                        ? '0 10px 25px rgba(139, 69, 19, 0.3)'
+                        : '0 4px 15px rgba(60, 32, 34, 0.2)',
+                  }
+            }
+          >
+            {time}
+
+            {horarioBlocked && (
+              <span className="block text-xs mt-1">
+                No disponible
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+)}
 
         {selectedTime && !isLargeGroup && (
           <div className="text-center">
