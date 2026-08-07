@@ -760,7 +760,7 @@ const ReservationForm: React.FC = () => {
       const isValentineBlocked = currentMonth.getMonth() === 1 && day === 14; // Febrero 14 bloqueado
       
 
-const isMay10Blocked = currentMonth.getMonth() === 5 && day === 21; // Bloqueo 21 de junio
+const isMay10Blocked = currentMonth.getMonth() === 7 && day === 9; // Bloqueo 21 de junio
       const isAvailable = !isPast && !isFuture && !isValentineBlocked && !isMay10Blocked;
       
       const isSelected = selectedDate && (() => {
@@ -1789,7 +1789,7 @@ const isMay10Blocked = currentMonth.getMonth() === 5 && day === 21; // Bloqueo 2
           selectedDate ===
             formatDateSpanish(
               9,
-              7,
+              6,
               currentMonth.getFullYear()
             ) &&
           horarioId > 2;
